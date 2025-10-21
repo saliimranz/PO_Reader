@@ -7,6 +7,12 @@ Imports UglyToad.PdfPig.Content
 
 Public Class PdfPoParser
     Private ReadOnly CI As CultureInfo = CultureInfo.InvariantCulture
+    Private Shared ReadOnly KnownLabelPrefixes As String() = {
+        "PO. Number", "Purchase Order", "Supplier Name", "Supplier Number", "Date",
+        "Currency", "Payment Terms", "Incoterms", "Shipping Address", "Sub Total",
+        "Subtotal", "VAT", "Grand Total", "Purchase Order Description", "Line Item",
+        "Line Item Code", "Supplier Details", "TERMS"
+    }
 
     Public Function Parse(pdfPath As String) As ParsedPo
         Dim pages As New List(Of PageData)
@@ -29,7 +35,7 @@ Public Class PdfPoParser
         details = CoalesceWrapped(details)
         AssignLineNumbers(details)
 
-        Return New ParsedPo With {.master = master, .details = details}
+        Return New ParsedPo With {.Master = master, .Details = details}
     End Function
 
     ' ---------- page model ----------
@@ -50,29 +56,29 @@ Public Class PdfPoParser
                                 .Where(Function(l) l.Length > 0) _
                                 .ToList()
 
-        h.PONumber = ExtractLabelValue(lines, "PO. Number:", 1)
+        h.PONumber = ExtractLabelValue(lines, "PO. Number", 1)
         If String.IsNullOrEmpty(h.PONumber) Then
-            h.PONumber = ExtractLabelValue(lines, "Purchase Order:", 1)
+            h.PONumber = ExtractLabelValue(lines, "Purchase Order", 1)
         End If
 
-        Dim sDate = ExtractLabelValue(lines, "Date:", 1)
+        Dim sDate = ExtractLabelValue(lines, "Date", 1)
         If Not String.IsNullOrEmpty(sDate) Then
             h.PODate = ParseDdMmmYyyy(sDate)
         End If
 
-        h.SupplierNumber = ExtractLabelValue(lines, "Supplier Number:", 1)
-        h.SupplierName = ExtractLabelValue(lines, "Supplier Name:", 1)
+        h.SupplierNumber = ExtractLabelValue(lines, "Supplier Number", 1)
+        h.SupplierName = ExtractLabelValue(lines, "Supplier Name", 1)
 
-        Dim currencyText = ExtractLabelValue(lines, "Currency:", 2)
+        Dim currencyText = ExtractLabelValue(lines, "Currency", 2)
         If Not String.IsNullOrEmpty(currencyText) Then
             Dim mCur = Regex.Match(currencyText, "\b([A-Z]{3})\b")
             If mCur.Success Then h.Currency = mCur.Groups(1).Value
         End If
 
-        h.PaymentTerms = ExtractLabelValue(lines, "Payment Terms:", 0)
-        h.IncoTerms = ExtractLabelValue(lines, "Incoterms:", 0)
+        h.PaymentTerms = ExtractLabelValue(lines, "Payment Terms", 3)
+        h.IncoTerms = ExtractLabelValue(lines, "Incoterms", 2)
 
-        Dim ship = ExtractLabelValue(lines, "Shipping Address", 1)
+        Dim ship = ExtractLabelValue(lines, "Shipping Address", 5)
         If Not String.IsNullOrEmpty(ship) Then
             h.Shipping_Address = ship
         End If
@@ -83,11 +89,19 @@ Public Class PdfPoParser
     End Sub
 
     Private Function ExtractLabelValue(lines As IList(Of String), label As String, Optional maxNextLines As Integer = 1) As String
+        If lines Is Nothing OrElse lines.Count = 0 Then Return Nothing
+
+        Dim pattern = BuildLabelPattern(label)
         For i = 0 To lines.Count - 1
             Dim line = lines(i)
-            If line.StartsWith(label, StringComparison.OrdinalIgnoreCase) Then
-                Dim remainder = line.Substring(Math.Min(label.Length, line.Length)).Trim()
-                If remainder.Length > 0 Then Return Clean(remainder)
+            Dim m = Regex.Match(line, pattern, RegexOptions.IgnoreCase)
+            If m.Success Then
+                Dim remainder = m.Groups("val").Value
+                If Not String.IsNullOrWhiteSpace(remainder) Then
+                    Return Clean(remainder)
+                End If
+
+                If maxNextLines <= 0 Then Return Nothing
 
                 Dim parts As New List(Of String)
                 Dim j = i + 1
@@ -95,28 +109,86 @@ Public Class PdfPoParser
                     Dim candidate = lines(j).Trim()
                     j += 1
                     If candidate.Length = 0 Then Continue While
-                    If candidate.Contains(":"c) Then Continue While
+                    If IsLikelyNewLabel(candidate) Then Exit While
                     parts.Add(candidate)
                 End While
 
                 If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
+                Return Nothing
             End If
         Next
         Return Nothing
     End Function
 
     Private Function MoneyAfterLabelLine(t As String, labelPattern As String) As Decimal?
-        Dim pat = labelPattern & "\s*:?(?:\s|\r|\n)*(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)"
-        Dim m = Regex.Match(t, pat, RegexOptions.IgnoreCase)
-        If m.Success Then Return ParseDec(m.Groups("n").Value)
+        Dim normalized = t.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
+        Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.None) _
+                              .Select(Function(l) l.Trim()) _
+                              .ToList()
+
+        Dim pat = New Regex("^\s*" & labelPattern & "\s*:?\s*(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\b", RegexOptions.IgnoreCase)
+
+        For i = 0 To lines.Count - 1
+            Dim line = lines(i)
+            Dim m = pat.Match(line)
+            If m.Success Then
+                Dim grp = m.Groups("n")
+                If grp.Success AndAlso grp.Value.Length > 0 Then
+                    Return ParseDec(grp.Value)
+                End If
+
+                Dim j = i + 1
+                While j < lines.Count
+                    Dim candidate = lines(j).Trim()
+                    j += 1
+                    If candidate.Length = 0 Then Continue While
+                    Dim numMatch = Regex.Match(candidate, "^\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?$")
+                    If numMatch.Success Then Return ParseDec(numMatch.Value)
+                    If IsLikelyNewLabel(candidate) Then Exit While
+                End While
+
+                Exit For
+            End If
+        Next
+
         Return Nothing
     End Function
 
     Private Function ExtractPoDescription(tAll As String) As String
         Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
-        Dim m = Regex.Match(normalized, "Purchase\s*Order\s*Description:\s*(?<d>[\s\S]+?)(?:\r?\n\s*(?:TERMS|Shipping Address|Line)\b|$)", RegexOptions.IgnoreCase)
-        If Not m.Success Then Return Nothing
-        Return Clean(m.Groups("d").Value)
+        Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.None) _
+                              .Select(Function(l) l.Trim()) _
+                              .ToList()
+
+        Dim pattern = BuildLabelPattern("Purchase Order Description")
+
+        For i = 0 To lines.Count - 1
+            Dim line = lines(i)
+            Dim m = Regex.Match(line, pattern, RegexOptions.IgnoreCase)
+            If m.Success Then
+                Dim parts As New List(Of String)
+                Dim inline = Clean(m.Groups("val").Value)
+                If Not String.IsNullOrEmpty(inline) Then parts.Add(inline)
+
+                Dim j = i + 1
+                While j < lines.Count
+                    Dim candidate = lines(j).Trim()
+                    j += 1
+                    If candidate.Length = 0 Then Continue While
+                    If IsLikelyNewLabel(candidate) Then Exit While
+                    parts.Add(candidate)
+                End While
+
+                Dim desc = Clean(String.Join(" ", parts))
+                If String.IsNullOrEmpty(desc) Then Return Nothing
+
+                desc = Regex.Replace(desc, "(?i)\bTERMS\s*&?\s*CONDITIONS\b.*$", String.Empty).Trim()
+                If desc.Length = 0 Then Return Nothing
+                Return desc
+            End If
+        Next
+
+        Return Nothing
     End Function
 
     Private Function ParseDdMmmYyyy(s As String) As DateTime?
@@ -136,6 +208,33 @@ Public Class PdfPoParser
 
     Private Function Clean(s As String) As String
         Return Regex.Replace(s, "\s+", " ").Trim().TrimEnd(":"c)
+    End Function
+
+    Private Function BuildLabelPattern(label As String) As String
+        Dim trimmed = label.Trim()
+        If trimmed.EndsWith(":"c) Then trimmed = trimmed.Substring(0, trimmed.Length - 1)
+
+        Dim segments = Regex.Split(trimmed, "\s+") _
+                             .Where(Function(seg) seg.Length > 0) _
+                             .Select(Function(seg) Regex.Escape(seg))
+
+        Dim body = String.Join("\\s*", segments)
+        If body.Length = 0 Then body = Regex.Escape(trimmed)
+
+        Return "^\s*" & body & "\s*:?\s*(?<val>.+)?$"
+    End Function
+
+    Private Function IsLikelyNewLabel(candidate As String) As Boolean
+        Dim normalized = Regex.Replace(candidate, "\s+", " ").Trim()
+        If normalized.Length = 0 Then Return False
+
+        For Each prefix In KnownLabelPrefixes
+            If normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) Then
+                Return True
+            End If
+        Next
+
+        Return False
     End Function
 
     ' ---------- items parsing ----------
