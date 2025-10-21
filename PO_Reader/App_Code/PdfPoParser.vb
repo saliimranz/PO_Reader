@@ -1,5 +1,6 @@
 ﻿Imports System
 Imports System.Globalization
+Imports System.Linq
 Imports System.Text.RegularExpressions
 Imports UglyToad.PdfPig
 Imports UglyToad.PdfPig.Content
@@ -42,54 +43,79 @@ Public Class PdfPoParser
 
     ' ---------- header parsing ----------
     Private Sub FillHeader(ByRef h As ParsedMaster, tAll As String)
-        ' Normalize only CRLF/CR, NOT all spaces
-        Dim t = tAll.Replace(vbCr, "").Replace(vbLf, vbLf) ' keep line breaks
+        Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
+        Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.RemoveEmptyEntries) _
+                                .Select(Function(l) l.Trim()) _
+                                .Where(Function(l) l.Length > 0) _
+                                .ToList()
 
-        ' PO number
-        h.PONumber = RxVal(t, "Purchase\s+Order:\s*\((?<v>[A-Z0-9\-]+)\)")
+        h.PONumber = ExtractLabelValue(lines, "PO. Number:", 1)
+        If String.IsNullOrEmpty(h.PONumber) Then
+            h.PONumber = ExtractLabelValue(lines, "Purchase Order:", 1)
+        End If
 
-        ' Date (line contains "Date: 18-OCT-2025")
-        Dim sDate = RxVal(t, "^\s*Date:\s*(?<v>\d{1,2}\-[A-Z]{3}\-\d{4})\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
-        If Not String.IsNullOrEmpty(sDate) Then h.PODate = ParseDdMmmYyyy(sDate)
+        Dim sDate = ExtractLabelValue(lines, "Date:", 1)
+        If Not String.IsNullOrEmpty(sDate) Then
+            h.PODate = ParseDdMmmYyyy(sDate)
+        End If
 
-        ' Supplier Number (line-scoped)
-        h.SupplierNumber = RxVal(t, "^\s*Supplier\s+Number:\s*(?<v>[A-Za-z0-9\-]+)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        h.SupplierNumber = ExtractLabelValue(lines, "Supplier Number:", 1)
+        h.SupplierName = ExtractLabelValue(lines, "Supplier Name:", 1)
 
-        ' Supplier Name (stop at end of line)
-        h.SupplierName = RxVal(t, "^\s*Supplier\s+Name:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        Dim currencyText = ExtractLabelValue(lines, "Currency:", 2)
+        If Not String.IsNullOrEmpty(currencyText) Then
+            Dim mCur = Regex.Match(currencyText, "\b([A-Z]{3})\b")
+            If mCur.Success Then h.Currency = mCur.Groups(1).Value
+        End If
 
-        ' Currency: "... - AED"
-        h.Currency = RxVal(t, "^\s*Currency:\s*[A-Za-z ]+\-\s*(?<v>[A-Z]{3})\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        h.PaymentTerms = ExtractLabelValue(lines, "Payment Terms:", 0)
+        h.IncoTerms = ExtractLabelValue(lines, "Incoterms:", 0)
 
-        ' Payment Terms / Incoterms (1 word/phrase until line end)
-        h.PaymentTerms = RxVal(t, "^\s*Payment\s*Terms:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
-        h.IncoTerms = RxVal(t, "^\s*Incoterms?:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        Dim ship = ExtractLabelValue(lines, "Shipping Address", 1)
+        If Not String.IsNullOrEmpty(ship) Then
+            h.Shipping_Address = ship
+        End If
 
-        ' Shipping address: take the Delivery Address line only (not the whole block)
-        h.Shipping_Address = RxVal(t, "^\s*Delivery\s*Address:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
-
-        ' Totals (exact labels from the PO)
-        h.SubTotal = MoneyAfterLabelLine(t, "^\s*Sub\.?\s*Total\s*Before\s*VAT\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
-        h.VAT = MoneyAfterLabelLine(t, "^\s*VAT\s*\d+%\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
-        h.Total = MoneyAfterLabelLine(t, "^\s*Grand\s*Total\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
+        h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\.?\s*Total\s*Before\s*VAT")
+        h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
+        h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
     End Sub
 
-    Private Function RxVal(t As String, pat As String, Optional opt As RegexOptions = RegexOptions.IgnoreCase) As String
-        Dim m = Regex.Match(t, pat, opt)
-        If m.Success Then Return m.Groups("v").Value.Trim()
+    Private Function ExtractLabelValue(lines As IList(Of String), label As String, Optional maxNextLines As Integer = 1) As String
+        For i = 0 To lines.Count - 1
+            Dim line = lines(i)
+            If line.StartsWith(label, StringComparison.OrdinalIgnoreCase) Then
+                Dim remainder = line.Substring(Math.Min(label.Length, line.Length)).Trim()
+                If remainder.Length > 0 Then Return Clean(remainder)
+
+                Dim parts As New List(Of String)
+                Dim j = i + 1
+                While j < lines.Count AndAlso parts.Count < maxNextLines
+                    Dim candidate = lines(j).Trim()
+                    j += 1
+                    If candidate.Length = 0 Then Continue While
+                    If candidate.Contains(":"c) Then Continue While
+                    parts.Add(candidate)
+                End While
+
+                If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
+            End If
+        Next
         Return Nothing
     End Function
 
-    Private Function MoneyAfterLabelLine(t As String, pat As String) As Decimal?
-        Dim m = Regex.Match(t, pat, RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+    Private Function MoneyAfterLabelLine(t As String, labelPattern As String) As Decimal?
+        Dim pat = labelPattern & "\s*:?(?:\s|\r|\n)*(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)"
+        Dim m = Regex.Match(t, pat, RegexOptions.IgnoreCase)
         If m.Success Then Return ParseDec(m.Groups("n").Value)
         Return Nothing
     End Function
 
     Private Function ExtractPoDescription(tAll As String) As String
-        Dim m = Regex.Match(tAll, "Purchase\s*Order\s*Description:\s*(?<d>[\s\S]+)$", RegexOptions.IgnoreCase)
+        Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
+        Dim m = Regex.Match(normalized, "Purchase\s*Order\s*Description:\s*(?<d>[\s\S]+?)(?:\r?\n\s*(?:TERMS|Shipping Address|Line)\b|$)", RegexOptions.IgnoreCase)
         If Not m.Success Then Return Nothing
-        Return m.Groups("d").Value.Trim()
+        Return Clean(m.Groups("d").Value)
     End Function
 
     Private Function ParseDdMmmYyyy(s As String) As DateTime?
@@ -114,13 +140,16 @@ Public Class PdfPoParser
     ' ---------- items parsing ----------
     Private Function ParseItemsOnPage(p As PageData) As List(Of ParsedDetail)
         Dim words = p.Words.OrderBy(Function(w) -w.BoundingBox.Top).ThenBy(Function(w) w.BoundingBox.Left).ToList()
-        Dim rows = GroupByY(words, 3.5)
+        Dim rows = RowsFromLineAnchors(words, 12.0)
+        If rows Is Nothing Then
+            rows = GroupByY(words, 6.0)
+        End If
 
-        ' cuts tuned for your layout
-        Dim cuts = New List(Of Double) From {0, 75, 155, 355, 470, 520, 565, 615, 675, 725, 780}
+        Dim cuts = New List(Of Double) From {0, 40, 110, 190, 240, 290, 330, 360, 400, 450, 500}
 
         Dim list As New List(Of ParsedDetail)
         For Each r In rows
+            r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
             If Regex.IsMatch(line, "Grand\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
@@ -135,22 +164,54 @@ Public Class PdfPoParser
             it.NetPrice = TryDec(Slice(r, cuts, 9))
             it.Amount = TryDec(Slice(r, cuts, 10))
 
-            ' --- CLEANUP / FILTER LOGIC ---
-            ' Drop lines that are obviously headers or section text
-            Dim rowText = String.Join(" ", r.Select(Function(w) w.Text)).ToUpperInvariant()
+            Dim rowText = line.ToUpperInvariant()
             If rowText.Contains("SUPPLIER DETAILS") OrElse rowText.StartsWith("LINE ITEM CODE") Then Continue For
 
-            ' Ignore “Deliver to” and other non-item blocks
             If Regex.IsMatch(it.Description, "^(SUPPLIER|DETAILS|TERMS|PAYMENT|INVOICE|DELIVERY|ADDRESS)\b", RegexOptions.IgnoreCase) Then
                 Continue For
             End If
-            ' --- END CLEANUP ---
 
             If Not String.IsNullOrWhiteSpace(it.ItemCode) OrElse (it.Amount.HasValue AndAlso it.Amount.Value > 0) Then
                 list.Add(it)
             End If
         Next
         Return list
+    End Function
+
+    Private Function RowsFromLineAnchors(words As List(Of Word), tol As Double) As List(Of List(Of Word))
+        Dim anchors = words _
+            .Where(Function(w) w.BoundingBox.Left < 70 AndAlso Regex.IsMatch(w.Text.Trim(), "^\d+(?:\.\d+)?$")) _
+            .ToList()
+        If anchors.Count = 0 Then Return Nothing
+
+        Dim map As New Dictionary(Of Word, List(Of Word))()
+        For Each a In anchors
+            map(a) = New List(Of Word)()
+        Next
+
+        For Each w In words
+            Dim best = anchors _
+                .Select(Function(a) New With {.Anchor = a, .Dist = Math.Abs(a.BoundingBox.Top - w.BoundingBox.Top)}) _
+                .Where(Function(x) x.Dist <= tol) _
+                .OrderBy(Function(x) x.Dist) _
+                .ThenBy(Function(x) Math.Abs(x.Anchor.BoundingBox.Left - w.BoundingBox.Left)) _
+                .FirstOrDefault()
+            If best IsNot Nothing Then
+                map(best.Anchor).Add(w)
+            End If
+        Next
+
+        Dim ordered = map.Where(Function(kvp) kvp.Value.Count > 0) _
+                          .OrderByDescending(Function(kvp) kvp.Key.BoundingBox.Top) _
+                          .ToList()
+
+        Dim result As New List(Of List(Of Word))()
+        For Each kvp In ordered
+            kvp.Value.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
+            result.Add(kvp.Value)
+        Next
+
+        Return result
     End Function
 
     Private Function GroupByY(words As List(Of Word), tol As Double) As List(Of List(Of Word))
