@@ -8,10 +8,13 @@ Imports UglyToad.PdfPig.Content
 Public Class PdfPoParser
     Private ReadOnly CI As CultureInfo = CultureInfo.InvariantCulture
     Private Shared ReadOnly KnownLabelPrefixes As String() = {
-        "PO. Number", "Purchase Order", "Supplier Name", "Supplier Number", "Date",
+        "PO. Number", "PO Number", "Purchase Order", "Supplier Name", "Supplier Number", "Date",
         "Currency", "Payment Terms", "Incoterms", "Shipping Address", "Sub Total",
-        "Subtotal", "VAT", "Grand Total", "Purchase Order Description", "Line Item",
-        "Line Item Code", "Supplier Details", "TERMS"
+        "Subtotal", "Total Discount", "Total Before VAT", "VAT", "Grand Total",
+        "Grand Total Amount in Words", "Purchase Order Description", "Line Item",
+        "Line Item Code", "Line", "Item Code", "Description", "Delivery Date", "Deliver to",
+        "UOM", "Qty", "Qty.", "Unit Price", "Discount", "Net Price", "Amount",
+        "Supplier Details", "TERMS", "Invoice Address", "Supplier Address"
     }
 
     Public Function Parse(pdfPath As String) As ParsedPo
@@ -109,6 +112,7 @@ Public Class PdfPoParser
                     Dim candidate = lines(j).Trim()
                     j += 1
                     If candidate.Length = 0 Then Continue While
+                    If candidate.Contains(":"c) Then Continue While
                     If IsLikelyNewLabel(candidate) Then Exit While
                     parts.Add(candidate)
                 End While
@@ -117,6 +121,45 @@ Public Class PdfPoParser
                 Return Nothing
             End If
         Next
+
+        Return ExtractLabelValueLegacy(lines, label, maxNextLines)
+    End Function
+
+    Private Function ExtractLabelValueLegacy(lines As IList(Of String), label As String, maxNextLines As Integer) As String
+        If lines Is Nothing OrElse lines.Count = 0 Then Return Nothing
+
+        Dim trimmed = label.Trim()
+        If trimmed.EndsWith(":"c) Then
+            trimmed = trimmed.Substring(0, trimmed.Length - 1)
+        End If
+
+        For i = 0 To lines.Count - 1
+            Dim line = lines(i)
+            If line.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) Then
+                Dim remainder = line.Substring(Math.Min(trimmed.Length, line.Length)).Trim()
+                If remainder.StartsWith(":"c) Then remainder = remainder.Substring(1).Trim()
+
+                If remainder.Length > 0 Then
+                    Return Clean(remainder)
+                End If
+
+                If maxNextLines <= 0 Then Return Nothing
+
+                Dim parts As New List(Of String)
+                Dim j = i + 1
+                While j < lines.Count AndAlso parts.Count < maxNextLines
+                    Dim candidate = lines(j).Trim()
+                    j += 1
+                    If candidate.Length = 0 Then Continue While
+                    If candidate.Contains(":"c) Then Continue While
+                    parts.Add(candidate)
+                End While
+
+                If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
+                Return Nothing
+            End If
+        Next
+
         Return Nothing
     End Function
 
