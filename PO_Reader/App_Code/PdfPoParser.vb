@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Globalization
 Imports System.Text.RegularExpressions
 Imports UglyToad.PdfPig
@@ -45,33 +45,33 @@ Public Class PdfPoParser
         ' Normalize only CRLF/CR, NOT all spaces
         Dim t = tAll.Replace(vbCr, "").Replace(vbLf, vbLf) ' keep line breaks
 
-        ' PO number
+        ' PO number - Updated pattern to match the actual format
         h.PONumber = RxVal(t, "Purchase\s+Order:\s*\((?<v>[A-Z0-9\-]+)\)")
 
         ' Date (line contains "Date: 18-OCT-2025")
-        Dim sDate = RxVal(t, "^\s*Date:\s*(?<v>\d{1,2}\-[A-Z]{3}\-\d{4})\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        Dim sDate = RxVal(t, "Date:\s*(?<v>\d{1,2}\-[A-Z]{3}\-\d{4})", RegexOptions.IgnoreCase)
         If Not String.IsNullOrEmpty(sDate) Then h.PODate = ParseDdMmmYyyy(sDate)
 
-        ' Supplier Number (line-scoped)
-        h.SupplierNumber = RxVal(t, "^\s*Supplier\s+Number:\s*(?<v>[A-Za-z0-9\-]+)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        ' Supplier Number - Updated pattern
+        h.SupplierNumber = RxVal(t, "Supplier\s+Number:\s*(?<v>[A-Za-z0-9\-]+)", RegexOptions.IgnoreCase)
 
-        ' Supplier Name (stop at end of line)
-        h.SupplierName = RxVal(t, "^\s*Supplier\s+Name:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        ' Supplier Name - Updated pattern
+        h.SupplierName = RxVal(t, "Supplier\s+Name:\s*(?<v>[^\r\n]+)", RegexOptions.IgnoreCase)
 
-        ' Currency: "... - AED"
-        h.Currency = RxVal(t, "^\s*Currency:\s*[A-Za-z ]+\-\s*(?<v>[A-Z]{3})\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        ' Currency: "UAE Dirham - AED" - Updated pattern
+        h.Currency = RxVal(t, "Currency:\s*[A-Za-z ]+\-\s*(?<v>[A-Z]{3})", RegexOptions.IgnoreCase)
 
-        ' Payment Terms / Incoterms (1 word/phrase until line end)
-        h.PaymentTerms = RxVal(t, "^\s*Payment\s*Terms:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
-        h.IncoTerms = RxVal(t, "^\s*Incoterms?:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        ' Payment Terms / Incoterms - Updated patterns
+        h.PaymentTerms = RxVal(t, "Payment\s*Terms:\s*(?<v>[^\r\n]+)", RegexOptions.IgnoreCase)
+        h.IncoTerms = RxVal(t, "Incoterms?:\s*(?<v>[^\r\n]+)", RegexOptions.IgnoreCase)
 
-        ' Shipping address: take the Delivery Address line only (not the whole block)
-        h.Shipping_Address = RxVal(t, "^\s*Delivery\s*Address:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        ' Shipping address - Updated pattern
+        h.Shipping_Address = RxVal(t, "Shipping\s+Address:\s*(?<v>[^\r\n]+)", RegexOptions.IgnoreCase)
 
-        ' Totals (exact labels from the PO)
-        h.SubTotal = MoneyAfterLabelLine(t, "^\s*Sub\.?\s*Total\s*Before\s*VAT\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
-        h.VAT = MoneyAfterLabelLine(t, "^\s*VAT\s*\d+%\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
-        h.Total = MoneyAfterLabelLine(t, "^\s*Grand\s*Total\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
+        ' Totals (exact labels from the PO) - These might not be present in this PDF format
+        h.SubTotal = MoneyAfterLabelLine(t, "Sub\.?\s*Total\s*Before\s*VAT\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+        h.VAT = MoneyAfterLabelLine(t, "VAT\s*\d+%\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+        h.Total = MoneyAfterLabelLine(t, "Grand\s*Total\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
     End Sub
 
     Private Function RxVal(t As String, pat As String, Optional opt As RegexOptions = RegexOptions.IgnoreCase) As String
@@ -81,7 +81,7 @@ Public Class PdfPoParser
     End Function
 
     Private Function MoneyAfterLabelLine(t As String, pat As String) As Decimal?
-        Dim m = Regex.Match(t, pat, RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        Dim m = Regex.Match(t, pat, RegexOptions.IgnoreCase)
         If m.Success Then Return ParseDec(m.Groups("n").Value)
         Return Nothing
     End Function
@@ -116,24 +116,28 @@ Public Class PdfPoParser
         Dim words = p.Words.OrderBy(Function(w) -w.BoundingBox.Top).ThenBy(Function(w) w.BoundingBox.Left).ToList()
         Dim rows = GroupByY(words, 3.5)
 
-        ' cuts tuned for your layout
-        Dim cuts = New List(Of Double) From {0, 75, 155, 355, 470, 520, 565, 615, 675, 725, 780}
+        ' cuts tuned for the actual PDF layout based on analysis
+        Dim cuts = New List(Of Double) From {0, 35, 100, 200, 250, 300, 325, 360, 415, 450, 515, 570}
 
         Dim list As New List(Of ParsedDetail)
         For Each r In rows
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
-            If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
+            ' Skip header rows
+            If Regex.IsMatch(line, "\b(Line|Item\s+Code|Description|Delivery\s+Date|Deliver\s+to|UOM|Qty|Unit\s+Price|Discount|Net\s+Price|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
+            ' Skip footer and page info
             If Regex.IsMatch(line, "Grand\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
+            ' Skip lines that are just "Trading FZE" or similar
+            If Regex.IsMatch(line, "^\s*Trading\s+FZE\s*$", RegexOptions.IgnoreCase) Then Continue For
 
             Dim it As New ParsedDetail
-            it.ItemCode = Slice(r, cuts, 1)
-            it.Description = Slice(r, cuts, 2)
-            it.DeliveryDate = TryDate(FirstDateLike(Slice(r, cuts, 3)))
-            it.UOM = Slice(r, cuts, 5)
-            it.Qty = TryInt(Slice(r, cuts, 6))
-            it.UnitPrice = TryDec(Slice(r, cuts, 7))
-            it.NetPrice = TryDec(Slice(r, cuts, 9))
-            it.Amount = TryDec(Slice(r, cuts, 10))
+            it.ItemCode = Slice(r, cuts, 1)  ' Column 1: Item Code
+            it.Description = Slice(r, cuts, 2)  ' Column 2: Description
+            it.DeliveryDate = TryDate(FirstDateLike(Slice(r, cuts, 3)))  ' Column 3: Delivery Date
+            it.UOM = Slice(r, cuts, 5)  ' Column 5: UOM
+            it.Qty = TryInt(Slice(r, cuts, 6))  ' Column 6: Qty
+            it.UnitPrice = TryDec(Slice(r, cuts, 7))  ' Column 7: Unit Price
+            it.NetPrice = TryDec(Slice(r, cuts, 9))  ' Column 9: Net Price
+            it.Amount = TryDec(Slice(r, cuts, 10))  ' Column 10: Amount
 
             ' --- CLEANUP / FILTER LOGIC ---
             ' Drop lines that are obviously headers or section text
@@ -141,7 +145,12 @@ Public Class PdfPoParser
             If rowText.Contains("SUPPLIER DETAILS") OrElse rowText.StartsWith("LINE ITEM CODE") Then Continue For
 
             ' Ignore “Deliver to” and other non-item blocks
-            If Regex.IsMatch(it.Description, "^(SUPPLIER|DETAILS|TERMS|PAYMENT|INVOICE|DELIVERY|ADDRESS)\b", RegexOptions.IgnoreCase) Then
+            If Regex.IsMatch(it.Description, "^(SUPPLIER|DETAILS|TERMS|PAYMENT|INVOICE|DELIVERY|ADDRESS|ALL\s+MAKES|AUTO\s+PARTS|GENERAL|TRADING\s+FZE)\b", RegexOptions.IgnoreCase) Then
+                Continue For
+            End If
+            
+            ' Skip rows that don't have meaningful data
+            If String.IsNullOrWhiteSpace(it.ItemCode) AndAlso String.IsNullOrWhiteSpace(it.Description) AndAlso Not it.Qty.HasValue AndAlso Not it.Amount.HasValue Then
                 Continue For
             End If
             ' --- END CLEANUP ---
