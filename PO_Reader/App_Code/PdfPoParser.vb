@@ -42,50 +42,54 @@ Public Class PdfPoParser
 
     ' ---------- header parsing ----------
     Private Sub FillHeader(ByRef h As ParsedMaster, tAll As String)
-        Dim t = Regex.Replace(tAll, "\s+", " ").Trim()
+        ' Normalize only CRLF/CR, NOT all spaces
+        Dim t = tAll.Replace(vbCr, "").Replace(vbLf, vbLf) ' keep line breaks
 
-        Dim mPO = Regex.Match(t, "Purchase\s+Order:\s*\((?<po>[A-Z0-9\-]+)\)", RegexOptions.IgnoreCase)
-        If mPO.Success Then h.PONumber = mPO.Groups("po").Value
+        ' PO number
+        h.PONumber = RxVal(t, "Purchase\s+Order:\s*\((?<v>[A-Z0-9\-]+)\)")
 
-        Dim mDate = Regex.Match(t, "\bDate:\s*(?<d>\d{1,2}\-[A-Z]{3}\-\d{4})", RegexOptions.IgnoreCase)
-        If mDate.Success Then h.PODate = ParseDdMmmYyyy(mDate.Groups("d").Value)
+        ' Date (line contains "Date: 18-OCT-2025")
+        Dim sDate = RxVal(t, "^\s*Date:\s*(?<v>\d{1,2}\-[A-Z]{3}\-\d{4})\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        If Not String.IsNullOrEmpty(sDate) Then h.PODate = ParseDdMmmYyyy(sDate)
 
-        Dim mSupp = Regex.Match(t, "Supplier\s+Name:\s*(?<name>.+?)\s+Supplier\s+(No\.?|Number)?:\s*(?<num>[A-Z0-9\-]+)?", RegexOptions.IgnoreCase)
-        If mSupp.Success Then
-            h.SupplierName = mSupp.Groups("name").Value.Trim()
-            h.SupplierNumber = mSupp.Groups("num").Value.Trim()
-        Else
-            Dim mSupp2 = Regex.Match(t, "Supplier\s+Name:\s*(?<name>.+?)\s+Supplier\s+VAT#:", RegexOptions.IgnoreCase)
-            If mSupp2.Success Then h.SupplierName = mSupp2.Groups("name").Value.Trim()
-        End If
+        ' Supplier Number (line-scoped)
+        h.SupplierNumber = RxVal(t, "^\s*Supplier\s+Number:\s*(?<v>[A-Za-z0-9\-]+)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
 
-        Dim mCur = Regex.Match(t, "Currency:\s*[A-Za-z ]+\-\s*(?<cur>[A-Z]{3})", RegexOptions.IgnoreCase)
-        If mCur.Success Then h.Currency = mCur.Groups("cur").Value.ToUpperInvariant()
+        ' Supplier Name (stop at end of line)
+        h.SupplierName = RxVal(t, "^\s*Supplier\s+Name:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
 
-        h.SubTotal = MoneyAfterLabel(t, "Sub\.?\s*Total\s*Before\s*VAT")
-        h.VAT = MoneyAfterLabel(t, "VAT\s*\d+%")
-        h.Total = MoneyAfterLabel(t, "Grand\s*Total")
+        ' Currency: "... - AED"
+        h.Currency = RxVal(t, "^\s*Currency:\s*[A-Za-z ]+\-\s*(?<v>[A-Z]{3})\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
 
-        Dim mTerms = Regex.Match(t, "Payment\s*Terms:\s*(?<x>[^:]+?)(?:\s+[A-Z][a-z]+:|\s+Grand\s*Total|$)", RegexOptions.IgnoreCase)
-        If mTerms.Success Then h.PaymentTerms = Clean(mTerms.Groups("x").Value)
+        ' Payment Terms / Incoterms (1 word/phrase until line end)
+        h.PaymentTerms = RxVal(t, "^\s*Payment\s*Terms:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        h.IncoTerms = RxVal(t, "^\s*Incoterms?:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
 
-        Dim mShip = Regex.Match(t, "Invoice\s*Address:\s*(?<x>.+?)\s+Delivery\s*Address:\s*(?<y>.+?)\s+(?:Currency|Page)\b", RegexOptions.IgnoreCase)
-        If mShip.Success Then h.Shipping_Address = Clean(mShip.Groups("y").Value)
+        ' Shipping address: take the Delivery Address line only (not the whole block)
+        h.Shipping_Address = RxVal(t, "^\s*Delivery\s*Address:\s*(?<v>.+?)\s*$", RegexOptions.IgnoreCase Or RegexOptions.Multiline)
 
-        Dim mInco = Regex.Match(t, "Incoterms?:\s*(?<x>[^:]+?)(?:\s+[A-Z][a-z]+:|\s+Grand\s*Total|$)", RegexOptions.IgnoreCase)
-        If mInco.Success Then h.IncoTerms = Clean(mInco.Groups("x").Value)
+        ' Totals (exact labels from the PO)
+        h.SubTotal = MoneyAfterLabelLine(t, "^\s*Sub\.?\s*Total\s*Before\s*VAT\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
+        h.VAT = MoneyAfterLabelLine(t, "^\s*VAT\s*\d+%\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
+        h.Total = MoneyAfterLabelLine(t, "^\s*Grand\s*Total\s+(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*$")
     End Sub
+
+    Private Function RxVal(t As String, pat As String, Optional opt As RegexOptions = RegexOptions.IgnoreCase) As String
+        Dim m = Regex.Match(t, pat, opt)
+        If m.Success Then Return m.Groups("v").Value.Trim()
+        Return Nothing
+    End Function
+
+    Private Function MoneyAfterLabelLine(t As String, pat As String) As Decimal?
+        Dim m = Regex.Match(t, pat, RegexOptions.IgnoreCase Or RegexOptions.Multiline)
+        If m.Success Then Return ParseDec(m.Groups("n").Value)
+        Return Nothing
+    End Function
 
     Private Function ExtractPoDescription(tAll As String) As String
         Dim m = Regex.Match(tAll, "Purchase\s*Order\s*Description:\s*(?<d>[\s\S]+)$", RegexOptions.IgnoreCase)
         If Not m.Success Then Return Nothing
         Return m.Groups("d").Value.Trim()
-    End Function
-
-    Private Function MoneyAfterLabel(t As String, label As String) As Decimal?
-        Dim m = Regex.Match(t, label & "\s*(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", RegexOptions.IgnoreCase)
-        If m.Success Then Return ParseDec(m.Groups("n").Value)
-        Return Nothing
     End Function
 
     Private Function ParseDdMmmYyyy(s As String) As DateTime?
@@ -110,7 +114,7 @@ Public Class PdfPoParser
     ' ---------- items parsing ----------
     Private Function ParseItemsOnPage(p As PageData) As List(Of ParsedDetail)
         Dim words = p.Words.OrderBy(Function(w) -w.BoundingBox.Top).ThenBy(Function(w) w.BoundingBox.Left).ToList()
-        Dim rows = GroupByY(words, 2.0)
+        Dim rows = GroupByY(words, 3.5)
 
         ' cuts tuned for your layout
         Dim cuts = New List(Of Double) From {0, 75, 155, 355, 470, 520, 565, 615, 675, 725, 780}
@@ -130,6 +134,17 @@ Public Class PdfPoParser
             it.UnitPrice = TryDec(Slice(r, cuts, 7))
             it.NetPrice = TryDec(Slice(r, cuts, 9))
             it.Amount = TryDec(Slice(r, cuts, 10))
+
+            ' --- CLEANUP / FILTER LOGIC ---
+            ' Drop lines that are obviously headers or section text
+            Dim rowText = String.Join(" ", r.Select(Function(w) w.Text)).ToUpperInvariant()
+            If rowText.Contains("SUPPLIER DETAILS") OrElse rowText.StartsWith("LINE ITEM CODE") Then Continue For
+
+            ' Ignore “Deliver to” and other non-item blocks
+            If Regex.IsMatch(it.Description, "^(SUPPLIER|DETAILS|TERMS|PAYMENT|INVOICE|DELIVERY|ADDRESS)\b", RegexOptions.IgnoreCase) Then
+                Continue For
+            End If
+            ' --- END CLEANUP ---
 
             If Not String.IsNullOrWhiteSpace(it.ItemCode) OrElse (it.Amount.HasValue AndAlso it.Amount.Value > 0) Then
                 list.Add(it)

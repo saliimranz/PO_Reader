@@ -64,7 +64,7 @@
             <div class="card">
                 <h3>Details (IBL_PO_Detail)</h3>
                 <div class="grid-wrap">
-                    <asp:GridView ID="gvDetails" runat="server" AutoGenerateColumns="false" AllowPaging="true" PageSize="20">
+                    <asp:GridView ID="gvDetails" runat="server" AutoGenerateColumns="false" AllowPaging="true" PageSize="20" OnPageIndexChanging="gvDetails_PageIndexChanging">
                         <Columns>
                             <asp:BoundField DataField="ItemCode" HeaderText="ItemCode" />
                             <asp:BoundField DataField="Description" HeaderText="Description" />

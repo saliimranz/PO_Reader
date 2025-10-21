@@ -107,4 +107,12 @@ Public Class UploadPO
         lblError.Text = msg
         lblError.Style("display") = "block"
     End Sub
+
+    Protected Sub gvDetails_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvDetails.PageIndex = e.NewPageIndex
+        If Parsed IsNot Nothing Then
+            gvDetails.DataSource = Parsed.Details
+            gvDetails.DataBind()
+        End If
+    End Sub
 End Class
