@@ -53,7 +53,7 @@ Public Class PdfPoParser
 
     ' ---------- header parsing ----------
     Private Sub FillHeader(ByRef h As ParsedMaster, tAll As String)
-        Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
+        Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf).Replace(ChrW(160), " "c)
         Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.RemoveEmptyEntries) _
                                 .Select(Function(l) l.Trim()) _
                                 .Where(Function(l) l.Length > 0) _
@@ -95,31 +95,41 @@ Public Class PdfPoParser
         If lines Is Nothing OrElse lines.Count = 0 Then Return Nothing
 
         Dim pattern = BuildLabelPattern(label)
+        Const MaxLabelLines As Integer = 3
         For i = 0 To lines.Count - 1
-            Dim line = lines(i)
-            Dim m = Regex.Match(line, pattern, RegexOptions.IgnoreCase)
-            If m.Success Then
-                Dim remainder = m.Groups("val").Value
-                If Not String.IsNullOrWhiteSpace(remainder) Then
-                    Return Clean(remainder)
+            Dim combined = lines(i)
+            For span = 0 To MaxLabelLines - 1
+                Dim m = Regex.Match(combined, pattern, RegexOptions.IgnoreCase)
+                If m.Success Then
+                    Dim remainder = m.Groups("val").Value
+                    If Not String.IsNullOrWhiteSpace(remainder) Then
+                        Return Clean(remainder)
+                    End If
+
+                    If maxNextLines <= 0 Then Return Nothing
+
+                    Dim parts As New List(Of String)
+                    Dim j = i + span + 1
+                    While j < lines.Count AndAlso parts.Count < maxNextLines
+                        Dim candidate = lines(j)
+                        j += 1
+                        Dim normalizedCandidate = Regex.Replace(candidate.Replace(ChrW(160), " "c), "\s+", " ").Trim()
+                        If normalizedCandidate.Length = 0 Then Continue While
+                        If IsLikelyNewLabel(normalizedCandidate) Then Exit While
+
+                        Dim valuePart = Clean(candidate)
+                        If valuePart.Length = 0 Then Continue While
+                        parts.Add(valuePart)
+                    End While
+
+                    If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
+                    Return Nothing
                 End If
 
-                If maxNextLines <= 0 Then Return Nothing
-
-                Dim parts As New List(Of String)
-                Dim j = i + 1
-                While j < lines.Count AndAlso parts.Count < maxNextLines
-                    Dim candidate = lines(j).Trim()
-                    j += 1
-                    If candidate.Length = 0 Then Continue While
-                    If candidate.Contains(":"c) Then Continue While
-                    If IsLikelyNewLabel(candidate) Then Exit While
-                    parts.Add(candidate)
-                End While
-
-                If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
-                Return Nothing
-            End If
+                Dim nextIndex = i + span + 1
+                If nextIndex >= lines.Count Then Exit For
+                combined &= " " & lines(nextIndex)
+            Next
         Next
 
         Return ExtractLabelValueLegacy(lines, label, maxNextLines)
@@ -148,14 +158,18 @@ Public Class PdfPoParser
                 Dim parts As New List(Of String)
                 Dim j = i + 1
                 While j < lines.Count AndAlso parts.Count < maxNextLines
-                    Dim candidate = lines(j).Trim()
-                    j += 1
-                    If candidate.Length = 0 Then Continue While
-                    If candidate.Contains(":"c) Then Continue While
-                    parts.Add(candidate)
-                End While
+                Dim candidate = lines(j)
+                j += 1
+                Dim normalizedCandidate = Regex.Replace(candidate.Replace(ChrW(160), " "c), "\s+", " ").Trim()
+                If normalizedCandidate.Length = 0 Then Continue While
+                If IsLikelyNewLabel(normalizedCandidate) Then Exit While
 
-                If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
+                Dim valuePart = Clean(candidate)
+                If valuePart.Length = 0 Then Continue While
+                parts.Add(valuePart)
+            End While
+
+            If parts.Count > 0 Then Return Clean(String.Join(" ", parts))
                 Return Nothing
             End If
         Next
@@ -164,7 +178,7 @@ Public Class PdfPoParser
     End Function
 
     Private Function MoneyAfterLabelLine(t As String, labelPattern As String) As Decimal?
-        Dim normalized = t.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
+        Dim normalized = t.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf).Replace(ChrW(160), " "c)
         Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.None) _
                               .Select(Function(l) l.Trim()) _
                               .ToList()
@@ -182,12 +196,13 @@ Public Class PdfPoParser
 
                 Dim j = i + 1
                 While j < lines.Count
-                    Dim candidate = lines(j).Trim()
+                    Dim candidateRaw = Regex.Replace(lines(j).Replace(ChrW(160), " "c), "\s+", " ").Trim()
+                    Dim candidateValue = Clean(lines(j))
                     j += 1
-                    If candidate.Length = 0 Then Continue While
-                    Dim numMatch = Regex.Match(candidate, "^\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?$")
+                    If candidateValue.Length = 0 Then Continue While
+                    Dim numMatch = Regex.Match(candidateValue, "^\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?$")
                     If numMatch.Success Then Return ParseDec(numMatch.Value)
-                    If IsLikelyNewLabel(candidate) Then Exit While
+                    If IsLikelyNewLabel(candidateRaw) Then Exit While
                 End While
 
                 Exit For
@@ -198,7 +213,7 @@ Public Class PdfPoParser
     End Function
 
     Private Function ExtractPoDescription(tAll As String) As String
-        Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf)
+        Dim normalized = tAll.Replace(vbCrLf, vbLf).Replace(vbCr, vbLf).Replace(ChrW(160), " "c)
         Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.None) _
                               .Select(Function(l) l.Trim()) _
                               .ToList()
@@ -250,7 +265,12 @@ Public Class PdfPoParser
     End Function
 
     Private Function Clean(s As String) As String
-        Return Regex.Replace(s, "\s+", " ").Trim().TrimEnd(":"c)
+        If String.IsNullOrEmpty(s) Then Return String.Empty
+
+        Dim normalized = s.Replace(ChrW(160), " "c)
+        normalized = Regex.Replace(normalized, "\s+", " ").Trim()
+        normalized = normalized.Trim(":"c).Trim()
+        Return normalized
     End Function
 
     Private Function BuildLabelPattern(label As String) As String
@@ -261,14 +281,14 @@ Public Class PdfPoParser
                              .Where(Function(seg) seg.Length > 0) _
                              .Select(Function(seg) Regex.Escape(seg))
 
-        Dim body = String.Join("\\s*", segments)
+        Dim body = String.Join("\s*", segments)
         If body.Length = 0 Then body = Regex.Escape(trimmed)
 
         Return "^\s*" & body & "\s*:?\s*(?<val>.+)?$"
     End Function
 
     Private Function IsLikelyNewLabel(candidate As String) As Boolean
-        Dim normalized = Regex.Replace(candidate, "\s+", " ").Trim()
+        Dim normalized = Regex.Replace(candidate.Replace(ChrW(160), " "c), "\s+", " ").Trim()
         If normalized.Length = 0 Then Return False
 
         For Each prefix In KnownLabelPrefixes
