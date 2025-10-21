@@ -14,6 +14,7 @@
 End Class
 
 Public Class ParsedDetail
+    Public Property LineNumber As Integer
     Public Property ItemCode As String
     Public Property Description As String
     Public Property DeliveryDate As DateTime?

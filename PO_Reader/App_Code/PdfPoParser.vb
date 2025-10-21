@@ -27,6 +27,7 @@ Public Class PdfPoParser
             details.AddRange(ParseItemsOnPage(p))
         Next
         details = CoalesceWrapped(details)
+        AssignLineNumbers(details)
 
         Return New ParsedPo With {.master = master, .details = details}
     End Function
@@ -277,4 +278,12 @@ Public Class PdfPoParser
         Next
         Return res
     End Function
+
+    Private Sub AssignLineNumbers(items As List(Of ParsedDetail))
+        Dim index = 1
+        For Each item In items
+            item.LineNumber = index
+            index += 1
+        Next
+    End Sub
 End Class

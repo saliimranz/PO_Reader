@@ -40,6 +40,9 @@ Public Class UploadPO
         Try
             Dim parser As New PdfPoParser()
             Dim parsed = parser.Parse(savePath)
+            If parsed.Details IsNot Nothing Then
+                parsed.Details.Sort(Function(a, b) a.LineNumber.CompareTo(b.LineNumber))
+            End If
             Me.Parsed = parsed
 
 

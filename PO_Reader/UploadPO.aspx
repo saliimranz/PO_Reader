@@ -66,6 +66,7 @@
                 <div class="grid-wrap">
                     <asp:GridView ID="gvDetails" runat="server" AutoGenerateColumns="false" AllowPaging="true" PageSize="20" OnPageIndexChanging="gvDetails_PageIndexChanging">
                         <Columns>
+                            <asp:BoundField DataField="LineNumber" HeaderText="Item #" />
                             <asp:BoundField DataField="ItemCode" HeaderText="ItemCode" />
                             <asp:BoundField DataField="Description" HeaderText="Description" />
                             <asp:BoundField DataField="DeliveryDate" HeaderText="DeliveryDate" DataFormatString="{0:yyyy-MM-dd}" />
