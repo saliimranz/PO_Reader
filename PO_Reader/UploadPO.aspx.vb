@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.IO
 Imports Newtonsoft.Json
 Imports UglyToad.PdfPig
@@ -38,7 +38,7 @@ Public Class UploadPO
 
 
         Try
-            Dim parser As New PdfPoParser()
+            Dim parser As New AdvancedPdfPoParser()
             Dim parsed = parser.Parse(savePath)
             If parsed.Details IsNot Nothing Then
                 parsed.Details.Sort(Function(a, b) a.LineNumber.CompareTo(b.LineNumber))
