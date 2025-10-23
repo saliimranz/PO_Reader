@@ -30,20 +30,13 @@ Public Class PdfPoParser
         Dim master As New ParsedMaster()
         FillHeader(master, full)
         master.PODescription = ExtractPoDescription(full)
+        
+        ' If PODescription is still empty, try to extract it from the full text
         If String.IsNullOrEmpty(master.PODescription) Then
-            master.PODescription = ExtractLabelValue(lines, "Purchase Order Description", 2)
-        End If
-        If String.IsNullOrEmpty(master.PODescription) Then
-            ' Try to find the description in the lines
-            For Each line In lines
-                If line.Contains("Purchase Order Description:") Then
-                    Dim descMatch = Regex.Match(line, "Purchase Order Description:\s*(.+)")
-                    If descMatch.Success Then
-                        master.PODescription = descMatch.Groups(1).Value.Trim()
-                        Exit For
-                    End If
-                End If
-            Next
+            Dim descMatch = Regex.Match(full, "Purchase Order Description:\s*(.+?)(?=\s*TERMS|$)", RegexOptions.IgnoreCase)
+            If descMatch.Success Then
+                master.PODescription = descMatch.Groups(1).Value.Trim()
+            End If
         End If
 
         Dim details As New List(Of ParsedDetail)
