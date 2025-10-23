@@ -149,42 +149,35 @@ Public Class PdfPoParser
             Next
         End If
 
-        h.PaymentTerms = ExtractLabelValue(lines, "Payment Terms", 3)
-        h.IncoTerms = ExtractLabelValue(lines, "Incoterms", 2)
-        
-        ' If IncoTerms extraction failed, try a more direct approach
-        If String.IsNullOrEmpty(h.IncoTerms) Then
-            For Each line In lines
-                If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
-                    Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z]+)")
-                    If incoMatch.Success Then
-                        h.IncoTerms = incoMatch.Groups(1).Value.Trim()
-                        Exit For
-                    End If
+        ' Extract Payment Terms and IncoTerms from the same line
+        For Each line In lines
+            If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
+                ' Extract Payment Terms
+                Dim paymentMatch = Regex.Match(line, "Payment Terms:\s*([A-Za-z]+)")
+                If paymentMatch.Success Then
+                    h.PaymentTerms = paymentMatch.Groups(1).Value.Trim()
                 End If
-            Next
-        End If
+                
+                ' Extract IncoTerms
+                Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z]+)")
+                If incoMatch.Success Then
+                    h.IncoTerms = incoMatch.Groups(1).Value.Trim()
+                End If
+                Exit For
+            End If
+        Next
 
-        ' Try to extract shipping address from the terms section
-        For i = 0 To lines.Count - 1
-            If lines(i).Contains("Terms") AndAlso i + 1 < lines.Count Then
-                Dim nextLine = lines(i + 1)
-                If nextLine.Contains("All Makes Auto Parts") Then
-                    h.Shipping_Address = nextLine.Trim()
+        ' Extract shipping address from the line containing Payment Terms and IncoTerms
+        For Each line In lines
+            If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") AndAlso line.Contains("All Makes Auto Parts") Then
+                ' Extract the company name from the end of the line
+                Dim addressMatch = Regex.Match(line, "All Makes Auto Parts General Trading FZE")
+                If addressMatch.Success Then
+                    h.Shipping_Address = "All Makes Auto Parts General Trading FZE"
                     Exit For
                 End If
             End If
         Next
-        
-        ' If still not found, try a more direct approach
-        If String.IsNullOrEmpty(h.Shipping_Address) Then
-            For Each line In lines
-                If line.Contains("All Makes Auto Parts General Trading FZE") Then
-                    h.Shipping_Address = "All Makes Auto Parts General Trading FZE"
-                    Exit For
-                End If
-            Next
-        End If
 
         ' Try multiple patterns for SubTotal
         h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\.?\s*Total\s*Before\s*VAT")
