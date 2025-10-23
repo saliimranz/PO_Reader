@@ -243,6 +243,7 @@
     <Content Include="Bundle.config" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="App_Code\AdvancedPdfPoParser.vb" />
     <Compile Include="App_Code\Models.vb" />
     <Compile Include="App_Code\PdfPoParser.vb" />
     <Compile Include="App_Code\PoRepository.vb" />
