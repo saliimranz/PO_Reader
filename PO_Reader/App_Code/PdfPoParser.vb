@@ -169,12 +169,17 @@ Public Class PdfPoParser
 
         ' Extract shipping address from the line containing Payment Terms and IncoTerms
         For Each line In lines
-            If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") AndAlso line.Contains("All Makes Auto Parts") Then
-                ' Extract the company name from the end of the line
-                Dim addressMatch = Regex.Match(line, "All Makes Auto Parts General Trading FZE")
+            If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
+                ' Extract everything after IncoTerms: [value]
+                ' Pattern: Incoterms: [value] [shipping address]
+                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z]+\s+(.+?)(?:\s*$)")
                 If addressMatch.Success Then
-                    h.Shipping_Address = "All Makes Auto Parts General Trading FZE"
-                    Exit For
+                    Dim potentialAddress = addressMatch.Groups(1).Value.Trim()
+                    ' Only use it if it's not empty and doesn't start with the IncoTerms value
+                    If Not String.IsNullOrEmpty(potentialAddress) AndAlso Not potentialAddress.StartsWith("Incoterms:") Then
+                        h.Shipping_Address = potentialAddress
+                        Exit For
+                    End If
                 End If
             End If
         Next
