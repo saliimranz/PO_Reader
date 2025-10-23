@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Enhanced PDF Parser with improved table parsing
-This parser uses advanced text analysis to better understand the document structure
-and extract data from complex tables.
+Enhanced PDF Parser with sophisticated table parsing
+This parser uses advanced text analysis to extract data from complex PDF tables.
 """
 
 import sys
@@ -46,19 +45,37 @@ class EnhancedPdfParser:
         """
         Parse the extracted text to extract structured data
         """
-        # Split text into lines
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        # Normalize text
+        normalized_text = self._normalize_text(text)
+        
+        # Split into lines
+        lines = [line.strip() for line in normalized_text.split('\n') if line.strip()]
         
         # Extract master data
         master_data = self._extract_master_data(lines)
         
         # Extract details data
-        details_data = self._extract_details_data(lines)
+        details = self._extract_details_data(lines)
         
         return {
             'master': master_data,
-            'details': details_data
+            'details': details
         }
+    
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize text for better parsing
+        """
+        # Replace various line endings with standard newlines
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
+        
+        # Replace non-breaking spaces
+        text = text.replace('\u00a0', ' ')
+        
+        # Normalize multiple spaces
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text
     
     def _extract_master_data(self, lines: List[str]) -> Dict[str, Any]:
         """
@@ -69,142 +86,106 @@ class EnhancedPdfParser:
         # Join all lines for pattern matching
         full_text = ' '.join(lines)
         
-        # Extract PO Number - look for the actual PO number in the text
-        po_number = self._find_po_number_enhanced(full_text, lines)
+        # Extract PO Number
+        po_number = self._extract_po_number(full_text, lines)
         if po_number:
             result['PONumber'] = po_number
         
         # Extract Supplier Information
-        supplier_info = self._find_supplier_info_enhanced(full_text, lines)
+        supplier_info = self._extract_supplier_info(full_text, lines)
         result.update(supplier_info)
         
         # Extract Date
-        po_date = self._find_po_date(full_text, lines)
+        po_date = self._extract_po_date(full_text, lines)
         if po_date:
             result['PODate'] = po_date
         
         # Extract Currency
-        currency = self._find_currency(full_text, lines)
+        currency = self._extract_currency(full_text, lines)
         if currency:
             result['Currency'] = currency
         
         # Extract Payment Terms
-        payment_terms = self._find_payment_terms(full_text, lines)
+        payment_terms = self._extract_payment_terms(full_text, lines)
         if payment_terms:
             result['PaymentTerms'] = payment_terms
         
         # Extract Shipping Address
-        shipping_address = self._find_shipping_address_enhanced(full_text, lines)
+        shipping_address = self._extract_shipping_address(full_text, lines)
         if shipping_address:
             result['Shipping_Address'] = shipping_address
         
         # Extract IncoTerms
-        inco_terms = self._find_inco_terms(full_text, lines)
+        inco_terms = self._extract_inco_terms(full_text, lines)
         if inco_terms:
             result['IncoTerms'] = inco_terms
         
         # Extract PO Description
-        po_description = self._find_po_description_enhanced(full_text, lines)
+        po_description = self._extract_po_description(full_text, lines)
         if po_description:
             result['PODescription'] = po_description
         
         # Extract Totals
-        totals = self._find_totals_enhanced(full_text, lines)
+        totals = self._extract_totals(full_text, lines)
         result.update(totals)
         
         return result
     
-    def _extract_details_data(self, lines: List[str]) -> List[Dict[str, Any]]:
+    def _extract_po_number(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Extract details data from lines with enhanced table parsing
+        Extract PO number
         """
-        details = []
-        
-        # Find the start and end of the table
-        table_start = -1
-        table_end = -1
-        
-        for i, line in enumerate(lines):
-            # Look for table header
-            if any(header in line for header in ['Line', 'Item Code', 'Description', 'Delivery Date', 'UOM', 'Qty', 'Unit Price', 'Amount']):
-                table_start = i
-                break
-        
-        if table_start == -1:
-            return details
-        
-        # Find the end of the table
-        for i in range(table_start + 1, len(lines)):
-            line = lines[i]
-            # Look for table end markers
-            if any(footer in line for footer in ['Grand Total', 'TERMS AND CONDITIONS', 'Page', 'Purchase Order Description']):
-                table_end = i
-                break
-        
-        if table_end == -1:
-            table_end = len(lines)
-        
-        # Extract table data with enhanced parsing
-        table_lines = lines[table_start:table_end]
-        details = self._parse_table_enhanced(table_lines)
-        
-        return details
-    
-    def _find_po_number_enhanced(self, full_text: str, lines: List[str]) -> Optional[str]:
-        """
-        Find PO number with enhanced logic
-        """
-        # Look for PO number patterns
+        # Look for PO number in the full text
         patterns = [
             r'PO\.?\s*Number:\s*([A-Z0-9\-]+)',
             r'Purchase Order:\s*\(([A-Z0-9\-]+)\)',
             r'PO\s*Number:\s*([A-Z0-9\-]+)',
-            r'AMAP-PO-(\d+)',  # Specific pattern for this PDF
-            r'Purchase Order:\s*\(AMAP-PO-(\d+)\)'
+            r'Purchase Order: \(([A-Z0-9\-]+)\)'
         ]
         
         for pattern in patterns:
             match = re.search(pattern, full_text, re.IGNORECASE)
             if match:
-                po_num = match.group(1).strip()
-                if po_num != '-':  # Skip placeholder values
-                    return po_num
+                return match.group(1).strip()
         
         return None
     
-    def _find_supplier_info_enhanced(self, full_text: str, lines: List[str]) -> Dict[str, str]:
+    def _extract_supplier_info(self, full_text: str, lines: List[str]) -> Dict[str, str]:
         """
-        Find supplier information with enhanced logic
+        Extract supplier information
         """
         result = {}
         
         # Look for supplier number
-        supplier_num_match = re.search(r'Supplier Number:\s*(\d+)', full_text, re.IGNORECASE)
-        if supplier_num_match:
-            result['SupplierNumber'] = supplier_num_match.group(1).strip()
+        supplier_num_patterns = [
+            r'Supplier Number:\s*(\d+)',
+            r'Supplier\s+Number:\s*(\d+)'
+        ]
         
-        # Look for supplier name - find the actual company name
+        for pattern in supplier_num_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                result['SupplierNumber'] = match.group(1).strip()
+                break
+        
+        # Look for supplier name
         supplier_name_patterns = [
-            r'Supplier Name:\s*([A-Z\s]+)',
-            r'AKAPOLCO INTERNATIONAL LLC',
-            r'All Make Auto Parts'
+            r'Supplier Name:\s*([A-Z\s]+?)(?=\s*Supplier|$)',
+            r'Supplier\s+Name:\s*([A-Z\s]+?)(?=\s*Supplier|$)'
         ]
         
         for pattern in supplier_name_patterns:
             match = re.search(pattern, full_text, re.IGNORECASE)
             if match:
-                name = match.group(1).strip() if match.groups() else match.group(0).strip()
-                if name and name != 'Supplier Details':
-                    result['SupplierName'] = name
-                    break
+                result['SupplierName'] = match.group(1).strip()
+                break
         
         return result
     
-    def _find_po_date(self, full_text: str, lines: List[str]) -> Optional[str]:
+    def _extract_po_date(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Find PO date in the text
+        Extract PO date
         """
-        # Look for date patterns
         patterns = [
             r'Date:\s*(\d{1,2}-[A-Z]{3}-\d{4})',
             r'(\d{1,2}-[A-Z]{3}-\d{4})'
@@ -215,7 +196,6 @@ class EnhancedPdfParser:
             if match:
                 date_str = match.group(1).strip()
                 try:
-                    # Convert to standard format
                     date_obj = datetime.strptime(date_str, '%d-%b-%Y')
                     return date_obj.strftime('%Y-%m-%d')
                 except ValueError:
@@ -223,11 +203,10 @@ class EnhancedPdfParser:
         
         return None
     
-    def _find_currency(self, full_text: str, lines: List[str]) -> Optional[str]:
+    def _extract_currency(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Find currency in the text
+        Extract currency
         """
-        # Look for currency patterns
         patterns = [
             r'Currency:\s*[^-]+-\s*([A-Z]{3})',
             r'UAE Dirham - ([A-Z]{3})'
@@ -240,188 +219,280 @@ class EnhancedPdfParser:
         
         return None
     
-    def _find_payment_terms(self, full_text: str, lines: List[str]) -> Optional[str]:
+    def _extract_payment_terms(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Find payment terms in the text
+        Extract payment terms
         """
-        match = re.search(r'Payment Terms:\s*([A-Za-z]+)', full_text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
+        patterns = [
+            r'Payment Terms:\s*([A-Za-z]+)',
+            r'Payment\s+Terms:\s*([A-Za-z]+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
         
         return None
     
-    def _find_shipping_address_enhanced(self, full_text: str, lines: List[str]) -> Optional[str]:
+    def _extract_shipping_address(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Find shipping address with enhanced logic
+        Extract shipping address
         """
         # Look for shipping address section
-        shipping_match = re.search(r'Shipping Address\s*([^TERMS]+)', full_text, re.IGNORECASE | re.DOTALL)
+        shipping_match = re.search(r'Shipping Address\s*(.+?)(?=Incoterms:|$)', full_text, re.IGNORECASE | re.DOTALL)
         if shipping_match:
             address = shipping_match.group(1).strip()
             # Clean up the address
             address = re.sub(r'\s+', ' ', address)
-            if address and len(address) > 5:  # Ensure it's a meaningful address
-                return address
+            return address
         
         return None
     
-    def _find_inco_terms(self, full_text: str, lines: List[str]) -> Optional[str]:
+    def _extract_inco_terms(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Find IncoTerms in the text
+        Extract IncoTerms
         """
-        match = re.search(r'Incoterms:\s*([A-Za-z]+)', full_text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
+        patterns = [
+            r'Incoterms:\s*([A-Za-z]+)',
+            r'Inco\s+Terms:\s*([A-Za-z]+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
         
         return None
     
-    def _find_po_description_enhanced(self, full_text: str, lines: List[str]) -> Optional[str]:
+    def _extract_po_description(self, full_text: str, lines: List[str]) -> Optional[str]:
         """
-        Find PO description with enhanced logic
+        Extract PO description
         """
-        match = re.search(r'Purchase Order Description:\s*([^TERMS]+)', full_text, re.IGNORECASE | re.DOTALL)
-        if match:
-            description = match.group(1).strip()
-            # Clean up the description
-            description = re.sub(r'\s+', ' ', description)
-            if description and len(description) > 2:  # Ensure it's a meaningful description
+        patterns = [
+            r'Purchase Order Description:\s*(.+?)(?=TERMS|$)',
+            r'Purchase\s+Order\s+Description:\s*(.+?)(?=TERMS|$)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE | re.DOTALL)
+            if match:
+                description = match.group(1).strip()
+                # Clean up the description
+                description = re.sub(r'\s+', ' ', description)
                 return description
         
         return None
     
-    def _find_totals_enhanced(self, full_text: str, lines: List[str]) -> Dict[str, float]:
+    def _extract_totals(self, full_text: str, lines: List[str]) -> Dict[str, float]:
         """
-        Find totals with enhanced logic
+        Extract totals
         """
         result = {}
         
         # Look for subtotal
-        subtotal_match = re.search(r'Sub\.?\s*Total\s*Before\s*VAT\s*([\d,]+\.?\d*)', full_text, re.IGNORECASE)
-        if subtotal_match:
-            result['SubTotal'] = float(subtotal_match.group(1).replace(',', ''))
+        subtotal_patterns = [
+            r'Sub\.?\s*Total\s*Before\s*VAT\s*([\d,]+\.?\d*)',
+            r'Sub\s+Total\s+Before\s+VAT\s+([\d,]+\.?\d*)'
+        ]
+        
+        for pattern in subtotal_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                result['SubTotal'] = float(match.group(1).replace(',', ''))
+                break
         
         # Look for VAT
-        vat_match = re.search(r'VAT\s*\d+%\s*([\d,]+\.?\d*)', full_text, re.IGNORECASE)
-        if vat_match:
-            result['VAT'] = float(vat_match.group(1).replace(',', ''))
+        vat_patterns = [
+            r'VAT\s*\d+%\s*([\d,]+\.?\d*)',
+            r'VAT\s+\d+%\s+([\d,]+\.?\d*)'
+        ]
+        
+        for pattern in vat_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                result['VAT'] = float(match.group(1).replace(',', ''))
+                break
         
         # Look for grand total
-        total_match = re.search(r'Grand\s*Total\s*([\d,]+\.?\d*)', full_text, re.IGNORECASE)
-        if total_match:
-            result['Total'] = float(total_match.group(1).replace(',', ''))
+        total_patterns = [
+            r'Grand\s*Total\s*([\d,]+\.?\d*)',
+            r'Grand\s+Total\s+([\d,]+\.?\d*)'
+        ]
+        
+        for pattern in total_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                result['Total'] = float(match.group(1).replace(',', ''))
+                break
         
         return result
     
-    def _parse_table_enhanced(self, table_lines: List[str]) -> List[Dict[str, Any]]:
+    def _extract_details_data(self, lines: List[str]) -> List[Dict[str, Any]]:
         """
-        Parse table with enhanced logic
+        Extract details data from lines using sophisticated table parsing
         """
         details = []
         
-        # Find the header row
-        header_row = -1
-        for i, line in enumerate(table_lines):
+        # Find the start of the table
+        table_start = -1
+        for i, line in enumerate(lines):
             if any(header in line for header in ['Line', 'Item Code', 'Description', 'Delivery Date', 'UOM', 'Qty', 'Unit Price', 'Amount']):
-                header_row = i
+                table_start = i
                 break
         
-        if header_row == -1:
+        if table_start == -1:
             return details
         
+        # Find the end of the table
+        table_end = len(lines)
+        for i in range(table_start + 1, len(lines)):
+            if any(footer in lines[i] for footer in ['Grand Total', 'TERMS AND CONDITIONS', 'Page', 'Purchase Order Description']):
+                table_end = i
+                break
+        
+        # Process table lines with improved logic
+        details = self._parse_table_with_advanced_logic(lines[table_start:table_end])
+        
+        return details
+    
+    def _parse_table_with_advanced_logic(self, table_lines: List[str]) -> List[Dict[str, Any]]:
+        """
+        Parse table with advanced logic to handle complex structure
+        """
+        details = []
+        
+        # Find the actual data rows (skip headers)
+        data_start = 0
+        for i, line in enumerate(table_lines):
+            if any(header in line for header in ['Line', 'Item Code', 'Description', 'Delivery Date', 'UOM', 'Qty', 'Unit Price', 'Amount']):
+                data_start = i + 1
+                break
+        
         # Process data rows
-        for i in range(header_row + 1, len(table_lines)):
+        i = data_start
+        while i < len(table_lines):
             line = table_lines[i]
             
             # Skip empty lines
             if not line.strip():
+                i += 1
                 continue
             
-            # Skip footer lines
-            if any(footer in line for footer in ['Grand Total', 'TERMS AND CONDITIONS', 'Page', 'Purchase Order Description']):
-                break
-            
-            # Parse the line
-            detail = self._parse_table_line_enhanced(line)
-            if detail and self._is_valid_item_detail(detail):
-                details.append(detail)
+            # Look for line number pattern (e.g., "1.1", "2.1", etc.)
+            line_match = re.match(r'^(\d+\.\d+)$', line.strip())
+            if line_match:
+                # This is the start of a new item
+                detail = self._parse_item_from_lines(table_lines, i)
+                if detail and self._is_valid_item_detail(detail):
+                    details.append(detail)
+                    # Skip to the next item
+                    i = self._find_next_item_start(table_lines, i + 1)
+                else:
+                    i += 1
+            else:
+                i += 1
         
         return details
     
-    def _parse_table_line_enhanced(self, line: str) -> Optional[Dict[str, Any]]:
+    def _parse_item_from_lines(self, lines: List[str], start_idx: int) -> Optional[Dict[str, Any]]:
         """
-        Parse a table line with enhanced logic
+        Parse an item from multiple lines starting at start_idx
         """
-        if not line or not line.strip():
+        if start_idx >= len(lines):
             return None
         
-        # Skip header lines
-        if any(header in line for header in ['Line', 'Item Code', 'Description', 'Delivery Date', 'UOM', 'Qty', 'Unit Price', 'Amount']):
-            return None
+        # Get the line number
+        line_number = lines[start_idx].strip()
         
-        # Skip footer lines
-        if any(footer in line for footer in ['Grand Total', 'TERMS AND CONDITIONS', 'Page', 'Purchase Order Description']):
-            return None
+        # Look for the next few lines to extract item data
+        item_data = {
+            'LineNumber': self._parse_int(line_number.split('.')[0]) if '.' in line_number else None,
+            'ItemCode': '',
+            'Description': '',
+            'DeliveryDate': None,
+            'UOM': '',
+            'Qty': None,
+            'UnitPrice': None,
+            'Discount': None,
+            'NetPrice': None,
+            'Amount': None
+        }
         
-        # Enhanced column splitting
-        columns = self._split_table_line_enhanced(line)
-        
-        if len(columns) < 6:  # Need at least 6 columns for valid data
-            return None
-        
-        try:
-            detail = {
-                'LineNumber': self._parse_int(columns[0]) if len(columns) > 0 else None,
-                'ItemCode': columns[1] if len(columns) > 1 else '',
-                'Description': columns[2] if len(columns) > 2 else '',
-                'DeliveryDate': self._parse_date(columns[3]) if len(columns) > 3 else None,
-                'UOM': columns[4] if len(columns) > 4 else '',
-                'Qty': self._parse_int(columns[5]) if len(columns) > 5 else None,
-                'UnitPrice': self._parse_decimal(columns[6]) if len(columns) > 6 else None,
-                'Discount': self._parse_decimal(columns[7]) if len(columns) > 7 else None,
-                'NetPrice': self._parse_decimal(columns[8]) if len(columns) > 8 else None,
-                'Amount': self._parse_decimal(columns[9]) if len(columns) > 9 else None
-            }
+        # Look for item code in the next few lines
+        for i in range(start_idx + 1, min(start_idx + 10, len(lines))):
+            line = lines[i].strip()
+            if not line:
+                continue
             
-            return detail
+            # Check if this looks like an item code (alphanumeric with dashes)
+            if re.match(r'^[A-Z0-9\-]+$', line) and len(line) > 5:
+                item_data['ItemCode'] = line
+                break
+        
+        # Look for description (usually follows item code)
+        for i in range(start_idx + 1, min(start_idx + 15, len(lines))):
+            line = lines[i].strip()
+            if not line:
+                continue
             
-        except Exception as e:
-            logger.warning(f"Failed to parse table line: {str(e)}")
-            return None
+            # Skip if it looks like an item code
+            if re.match(r'^[A-Z0-9\-]+$', line):
+                continue
+            
+            # Skip if it looks like a date
+            if re.match(r'^\d{1,2}-[A-Z]{3}-\d{4}$', line):
+                item_data['DeliveryDate'] = self._parse_date(line)
+                continue
+            
+            # Skip if it looks like a number (quantity, price, etc.)
+            if re.match(r'^\d+\.?\d*$', line):
+                continue
+            
+            # Skip if it's a short word (UOM)
+            if len(line) <= 3:
+                item_data['UOM'] = line
+                continue
+            
+            # This might be part of the description
+            if item_data['Description']:
+                item_data['Description'] += ' ' + line
+            else:
+                item_data['Description'] = line
+        
+        # Look for numeric data (quantities, prices, amounts)
+        for i in range(start_idx + 1, min(start_idx + 20, len(lines))):
+            line = lines[i].strip()
+            if not line:
+                continue
+            
+            # Check if this looks like a quantity
+            if re.match(r'^\d+$', line) and not item_data['Qty']:
+                item_data['Qty'] = self._parse_int(line)
+                continue
+            
+            # Check if this looks like a price
+            if re.match(r'^\d+\.\d+$', line):
+                if not item_data['UnitPrice']:
+                    item_data['UnitPrice'] = self._parse_decimal(line)
+                elif not item_data['NetPrice']:
+                    item_data['NetPrice'] = self._parse_decimal(line)
+                elif not item_data['Amount']:
+                    item_data['Amount'] = self._parse_decimal(line)
+                continue
+        
+        return item_data
     
-    def _split_table_line_enhanced(self, line: str) -> List[str]:
+    def _find_next_item_start(self, lines: List[str], start_idx: int) -> int:
         """
-        Split table line with enhanced logic
+        Find the start of the next item
         """
-        # First, try to split by multiple spaces
-        columns = re.split(r'\s{2,}', line)
+        for i in range(start_idx, len(lines)):
+            line = lines[i].strip()
+            if re.match(r'^(\d+\.\d+)$', line):
+                return i
         
-        # If we don't have enough columns, try a different approach
-        if len(columns) < 6:
-            # Look for patterns that suggest column boundaries
-            # This is a simplified approach - in practice, you'd use more sophisticated methods
-            
-            # Try splitting by single spaces and then group related items
-            words = line.split()
-            columns = []
-            current_column = []
-            
-            for word in words:
-                # If the word looks like a number (quantity, price, amount), it might be a new column
-                if re.match(r'^\d+\.?\d*$', word) or re.match(r'^\d+,\d+\.?\d*$', word):
-                    if current_column:
-                        columns.append(' '.join(current_column))
-                        current_column = []
-                    columns.append(word)
-                else:
-                    current_column.append(word)
-            
-            if current_column:
-                columns.append(' '.join(current_column))
-        
-        # Clean up columns
-        columns = [col.strip() for col in columns if col.strip()]
-        
-        return columns
+        return len(lines)
     
     def _is_valid_item_detail(self, detail: Dict[str, Any]) -> bool:
         """

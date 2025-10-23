@@ -7,7 +7,7 @@ Imports Newtonsoft.Json.Linq
 
 Public Class AdvancedPdfPoParser
     Private ReadOnly _pythonPath As String = "python3"
-    Private ReadOnly _scriptPath As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Code", "HybridPdfParser.py")
+    Private ReadOnly _scriptPath As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Code", "FinalPdfParser.py")
 
     Public Function Parse(pdfPath As String) As ParsedPo
         Try
