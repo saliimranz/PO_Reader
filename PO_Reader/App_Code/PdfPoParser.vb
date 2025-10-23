@@ -81,6 +81,19 @@ Public Class PdfPoParser
         If Not String.IsNullOrEmpty(sDate) Then
             h.PODate = ParseDdMmmYyyy(sDate)
         End If
+        
+        ' If date extraction failed, try a more direct approach
+        If Not h.PODate.HasValue Then
+            For Each line In lines
+                If line.Contains("Date:") Then
+                    Dim dateMatch = Regex.Match(line, "Date:\s*(\d{1,2}-[A-Z]{3}-\d{4})")
+                    If dateMatch.Success Then
+                        h.PODate = ParseDdMmmYyyy(dateMatch.Groups(1).Value)
+                        Exit For
+                    End If
+                End If
+            Next
+        End If
 
         h.SupplierNumber = ExtractLabelValue(lines, "Supplier Number", 1)
         h.SupplierName = ExtractLabelValue(lines, "Supplier Name", 1)
@@ -102,7 +115,7 @@ Public Class PdfPoParser
                     End If
                     
                     ' Extract Supplier Name
-                    Dim supplierNameMatch = Regex.Match(line, "Supplier Name:\s*([A-Z\s]+?)(?=\s*$|Supplier|PO|VAT)")
+                    Dim supplierNameMatch = Regex.Match(line, "Supplier Name:\s*([A-Z\s]+?)(?=\s*$|Supplier VAT|VAT#)")
                     If supplierNameMatch.Success Then
                         h.SupplierName = supplierNameMatch.Groups(1).Value.Trim()
                     End If
@@ -122,28 +135,58 @@ Public Class PdfPoParser
                 If mCur.Success Then h.Currency = mCur.Groups(1).Value
             End If
         End If
-
-        h.PaymentTerms = ExtractLabelValue(lines, "Payment Terms", 3)
-        h.IncoTerms = ExtractLabelValue(lines, "Incoterms", 2)
-
-        Dim ship = ExtractLabelValue(lines, "Shipping Address", 5)
-        If Not String.IsNullOrEmpty(ship) Then
-            h.Shipping_Address = ship
-        End If
         
-        ' Also try to extract shipping address from the terms section
-        If String.IsNullOrEmpty(h.Shipping_Address) Then
-            For i = 0 To lines.Count - 1
-                If lines(i).Contains("Terms") AndAlso i + 1 < lines.Count Then
-                    Dim nextLine = lines(i + 1)
-                    If nextLine.Contains("All Makes Auto Parts") Then
-                        h.Shipping_Address = nextLine.Trim()
+        ' If currency extraction failed, try a more direct approach
+        If String.IsNullOrEmpty(h.Currency) Then
+            For Each line In lines
+                If line.Contains("Currency:") Then
+                    Dim currencyMatch = Regex.Match(line, "Currency:\s*[^-]+-\s*([A-Z]{3})")
+                    If currencyMatch.Success Then
+                        h.Currency = currencyMatch.Groups(1).Value
                         Exit For
                     End If
                 End If
             Next
         End If
 
+        h.PaymentTerms = ExtractLabelValue(lines, "Payment Terms", 3)
+        h.IncoTerms = ExtractLabelValue(lines, "Incoterms", 2)
+        
+        ' If IncoTerms extraction failed, try a more direct approach
+        If String.IsNullOrEmpty(h.IncoTerms) Then
+            For Each line In lines
+                If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
+                    Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z]+)")
+                    If incoMatch.Success Then
+                        h.IncoTerms = incoMatch.Groups(1).Value.Trim()
+                        Exit For
+                    End If
+                End If
+            Next
+        End If
+
+        ' Try to extract shipping address from the terms section
+        For i = 0 To lines.Count - 1
+            If lines(i).Contains("Terms") AndAlso i + 1 < lines.Count Then
+                Dim nextLine = lines(i + 1)
+                If nextLine.Contains("All Makes Auto Parts") Then
+                    h.Shipping_Address = nextLine.Trim()
+                    Exit For
+                End If
+            End If
+        Next
+        
+        ' If still not found, try a more direct approach
+        If String.IsNullOrEmpty(h.Shipping_Address) Then
+            For Each line In lines
+                If line.Contains("All Makes Auto Parts General Trading FZE") Then
+                    h.Shipping_Address = "All Makes Auto Parts General Trading FZE"
+                    Exit For
+                End If
+            Next
+        End If
+
+        ' Try multiple patterns for SubTotal
         h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\.?\s*Total\s*Before\s*VAT")
         If Not h.SubTotal.HasValue Then
             h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\s*Total\s*Before\s*VAT")
@@ -152,17 +195,48 @@ Public Class PdfPoParser
             h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\.?\s*Total\s*Before\s*VAT")
         End If
         
-        h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
-        If Not h.VAT.HasValue Then
-            h.VAT = MoneyAfterLabelLine(normalized, "VAT\d+%")
-        End If
+        ' Try multiple patterns for VAT
+        h.VAT = MoneyAfterLabelLine(normalized, "VAT\d+%")
         If Not h.VAT.HasValue Then
             h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*\d+%")
         End If
+        If Not h.VAT.HasValue Then
+            h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
+        End If
         
+        ' Try multiple patterns for Total
         h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
         If Not h.Total.HasValue Then
             h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
+        End If
+        
+        ' If totals extraction failed, try a more direct approach
+        If Not h.SubTotal.HasValue OrElse Not h.VAT.HasValue OrElse Not h.Total.HasValue Then
+            For Each line In lines
+                ' Look for SubTotal
+                If Not h.SubTotal.HasValue AndAlso line.Contains("Sub. Total Before VAT") Then
+                    Dim subtotalMatch = Regex.Match(line, "Sub\.?\s*Total\s*Before\s*VAT\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+                    If subtotalMatch.Success Then
+                        h.SubTotal = ParseDec(subtotalMatch.Groups(1).Value)
+                    End If
+                End If
+                
+                ' Look for VAT
+                If Not h.VAT.HasValue AndAlso line.Contains("VAT") AndAlso line.Contains("%") Then
+                    Dim vatMatch = Regex.Match(line, "VAT\d+%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+                    If vatMatch.Success Then
+                        h.VAT = ParseDec(vatMatch.Groups(1).Value)
+                    End If
+                End If
+                
+                ' Look for Grand Total
+                If Not h.Total.HasValue AndAlso line.Contains("Grand Total") Then
+                    Dim totalMatch = Regex.Match(line, "Grand\s*Total\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+                    If totalMatch.Success Then
+                        h.Total = ParseDec(totalMatch.Groups(1).Value)
+                    End If
+                End If
+            Next
         End If
     End Sub
 
@@ -283,6 +357,8 @@ Public Class PdfPoParser
         Dim pat = New Regex("^\s*" & labelPattern & "\s*:?\s*(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\b", RegexOptions.IgnoreCase)
         ' Also try pattern without the ^ anchor for cases where the label might not be at start of line
         Dim pat2 = New Regex("\b" & labelPattern & "\s*:?\s*(?<n>\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\b", RegexOptions.IgnoreCase)
+        ' Try pattern that matches the exact format in the PDF
+        Dim pat3 = New Regex(labelPattern & "\s*(?<n>\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", RegexOptions.IgnoreCase)
 
         For i = 0 To lines.Count - 1
             Dim line = lines(i)
@@ -313,6 +389,16 @@ Public Class PdfPoParser
             
             ' Try the second pattern (without ^ anchor)
             m = pat2.Match(line)
+            If m.Success Then
+                Dim grp = m.Groups("n")
+                If grp.Success AndAlso grp.Value.Length > 0 Then
+                    Dim result = ParseDec(grp.Value)
+                    Return result
+                End If
+            End If
+            
+            ' Try the third pattern (exact format)
+            m = pat3.Match(line)
             If m.Success Then
                 Dim grp = m.Groups("n")
                 If grp.Success AndAlso grp.Value.Length > 0 Then
