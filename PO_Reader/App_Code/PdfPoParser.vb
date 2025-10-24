@@ -201,13 +201,13 @@ Public Class PdfPoParser
         If Not h.VAT.HasValue Then
             h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
         End If
-        
+
         ' Try multiple patterns for Total
         h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
         If Not h.Total.HasValue Then
             h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
         End If
-        
+
         ' If totals extraction failed, try a more direct approach
         If Not h.SubTotal.HasValue OrElse Not h.VAT.HasValue OrElse Not h.Total.HasValue Then
             For Each line In lines
@@ -218,7 +218,7 @@ Public Class PdfPoParser
                         h.SubTotal = ParseDec(subtotalMatch.Groups(1).Value)
                     End If
                 End If
-                
+
                 ' Look for VAT
                 If Not h.VAT.HasValue AndAlso line.Contains("VAT") AndAlso line.Contains("%") Then
                     Dim vatMatch = Regex.Match(line, "VAT\d+%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
@@ -226,7 +226,7 @@ Public Class PdfPoParser
                         h.VAT = ParseDec(vatMatch.Groups(1).Value)
                     End If
                 End If
-                
+
                 ' Look for Grand Total
                 If Not h.Total.HasValue AndAlso line.Contains("Grand Total") Then
                     Dim totalMatch = Regex.Match(line, "Grand\s*Total\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
@@ -270,7 +270,7 @@ Public Class PdfPoParser
                         parts.Add(valuePart)
                     End While
 
-                    If parts.Count > 0 Then 
+                    If parts.Count > 0 Then
                         Dim result = Clean(String.Join(" ", parts))
                         Return result
                     End If
@@ -324,21 +324,21 @@ Public Class PdfPoParser
                 Dim parts As New List(Of String)
                 Dim j = i + 1
                 While j < lines.Count AndAlso parts.Count < maxNextLines
-                Dim candidate = lines(j)
-                j += 1
-                Dim normalizedCandidate = Regex.Replace(candidate.Replace(ChrW(160), " "c), "\s+", " ").Trim()
-                If normalizedCandidate.Length = 0 Then Continue While
-                If IsLikelyNewLabel(normalizedCandidate) Then Exit While
+                    Dim candidate = lines(j)
+                    j += 1
+                    Dim normalizedCandidate = Regex.Replace(candidate.Replace(ChrW(160), " "c), "\s+", " ").Trim()
+                    If normalizedCandidate.Length = 0 Then Continue While
+                    If IsLikelyNewLabel(normalizedCandidate) Then Exit While
 
-                Dim valuePart = Clean(candidate)
-                If valuePart.Length = 0 Then Continue While
-                parts.Add(valuePart)
-            End While
+                    Dim valuePart = Clean(candidate)
+                    If valuePart.Length = 0 Then Continue While
+                    parts.Add(valuePart)
+                End While
 
-            If parts.Count > 0 Then 
-                Dim result = Clean(String.Join(" ", parts))
-                Return result
-            End If
+                If parts.Count > 0 Then
+                    Dim result = Clean(String.Join(" ", parts))
+                    Return result
+                End If
                 Return Nothing
             End If
         Next
@@ -375,7 +375,7 @@ Public Class PdfPoParser
                     j += 1
                     If candidateValue.Length = 0 Then Continue While
                     Dim numMatch = Regex.Match(candidateValue, "^\-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?$")
-                    If numMatch.Success Then 
+                    If numMatch.Success Then
                         Dim result = ParseDec(numMatch.Value)
                         Return result
                     End If
@@ -384,7 +384,7 @@ Public Class PdfPoParser
 
                 Exit For
             End If
-            
+
             ' Try the second pattern (without ^ anchor)
             m = pat2.Match(line)
             If m.Success Then
@@ -394,7 +394,7 @@ Public Class PdfPoParser
                     Return result
                 End If
             End If
-            
+
             ' Try the third pattern (exact format)
             m = pat3.Match(line)
             If m.Success Then
