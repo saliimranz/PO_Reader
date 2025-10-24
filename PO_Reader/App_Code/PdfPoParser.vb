@@ -205,6 +205,10 @@ Public Class PdfPoParser
         If Not h.VAT.HasValue Then
             h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*%")
         End If
+        ' Handle VAT 0% scenario (explicit 0%)
+        If Not h.VAT.HasValue Then
+            h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*0%")
+        End If
         
         ' Try multiple patterns for Total
         h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
@@ -234,6 +238,12 @@ Public Class PdfPoParser
                         vatMatch = Regex.Match(line, "VAT\s*%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
                         If vatMatch.Success Then
                             h.VAT = ParseDec(vatMatch.Groups(1).Value)
+                        Else
+                            ' Try VAT 0% scenario (e.g., "VAT 0% 0.00")
+                            vatMatch = Regex.Match(line, "VAT\s*0%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+                            If vatMatch.Success Then
+                                h.VAT = ParseDec(vatMatch.Groups(1).Value)
+                            End If
                         End If
                     End If
                 End If
