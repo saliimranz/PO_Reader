@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.IO
 Imports Newtonsoft.Json
 Imports UglyToad.PdfPig

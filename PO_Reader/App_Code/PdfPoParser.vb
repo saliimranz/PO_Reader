@@ -201,6 +201,10 @@ Public Class PdfPoParser
         If Not h.VAT.HasValue Then
             h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
         End If
+        ' Handle VAT % scenario (no number before %)
+        If Not h.VAT.HasValue Then
+            h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*%")
+        End If
         
         ' Try multiple patterns for Total
         h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
@@ -221,9 +225,16 @@ Public Class PdfPoParser
                 
                 ' Look for VAT
                 If Not h.VAT.HasValue AndAlso line.Contains("VAT") AndAlso line.Contains("%") Then
+                    ' Try VAT with number before % (e.g., "VAT15% 123.45")
                     Dim vatMatch = Regex.Match(line, "VAT\d+%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
                     If vatMatch.Success Then
                         h.VAT = ParseDec(vatMatch.Groups(1).Value)
+                    Else
+                        ' Try VAT % without number (e.g., "VAT % 123.45")
+                        vatMatch = Regex.Match(line, "VAT\s*%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
+                        If vatMatch.Success Then
+                            h.VAT = ParseDec(vatMatch.Groups(1).Value)
+                        End If
                     End If
                 End If
                 
