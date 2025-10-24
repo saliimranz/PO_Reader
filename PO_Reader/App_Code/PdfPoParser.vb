@@ -201,9 +201,17 @@ Public Class PdfPoParser
         If Not h.VAT.HasValue Then
             h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
         End If
-        ' Handle VAT % scenario (no number before %)
+        ' Handle VAT % scenario (no number before %) - this should match "VAT % 0.00"
         If Not h.VAT.HasValue Then
             h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*%")
+        End If
+        ' Handle VAT % with space before value (e.g., "VAT % 0.00")
+        If Not h.VAT.HasValue Then
+            h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*%\s+")
+        End If
+        ' Custom handling for VAT % pattern
+        If Not h.VAT.HasValue Then
+            h.VAT = ExtractVATAfterPercent(normalized)
         End If
         ' Handle VAT 0% scenario (explicit 0%)
         If Not h.VAT.HasValue Then
@@ -234,7 +242,7 @@ Public Class PdfPoParser
                     If vatMatch.Success Then
                         h.VAT = ParseDec(vatMatch.Groups(1).Value)
                     Else
-                        ' Try VAT % without number (e.g., "VAT % 123.45")
+                        ' Try VAT % without number (e.g., "VAT % 0.00" or "VAT % 123.45")
                         vatMatch = Regex.Match(line, "VAT\s*%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
                         If vatMatch.Success Then
                             h.VAT = ParseDec(vatMatch.Groups(1).Value)
@@ -424,6 +432,23 @@ Public Class PdfPoParser
                     Dim result = ParseDec(grp.Value)
                     Return result
                 End If
+            End If
+        Next
+
+        Return Nothing
+    End Function
+
+    Private Function ExtractVATAfterPercent(normalized As String) As Decimal?
+        ' Handle VAT % pattern specifically (e.g., "VAT % 0.00")
+        Dim lines = normalized.Split(New String() {vbLf}, StringSplitOptions.None) _
+                              .Select(Function(l) l.Trim()) _
+                              .ToList()
+
+        For Each line In lines
+            ' Look for "VAT %" followed by a number
+            Dim vatMatch = Regex.Match(line, "VAT\s*%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", RegexOptions.IgnoreCase)
+            If vatMatch.Success Then
+                Return ParseDec(vatMatch.Groups(1).Value)
             End If
         Next
 
