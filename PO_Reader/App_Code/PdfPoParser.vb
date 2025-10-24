@@ -152,16 +152,22 @@ Public Class PdfPoParser
         ' Extract Payment Terms and IncoTerms from the same line
         For Each line In lines
             If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
-                ' Extract Payment Terms
-                Dim paymentMatch = Regex.Match(line, "Payment Terms:\s*([A-Za-z]+)")
+                ' Extract Payment Terms - get everything between Payment Terms: and Incoterms:
+                Dim paymentMatch = Regex.Match(line, "Payment Terms:\s*([^:]+?)\s*Incoterms:")
                 If paymentMatch.Success Then
                     h.PaymentTerms = paymentMatch.Groups(1).Value.Trim()
                 End If
                 
-                ' Extract IncoTerms
-                Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z]+)")
+                ' Extract IncoTerms - get everything after Incoterms: until the next label or end of line
+                Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z0-9\s]+?)(?:\s+[A-Z][a-z]*:|$)")
                 If incoMatch.Success Then
                     h.IncoTerms = incoMatch.Groups(1).Value.Trim()
+                Else
+                    ' Try a more flexible pattern for cases with shipping address
+                    incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z0-9\s]+?)(?:\s+[A-Z][a-z]+\s|$)")
+                    If incoMatch.Success Then
+                        h.IncoTerms = incoMatch.Groups(1).Value.Trim()
+                    End If
                 End If
                 Exit For
             End If
@@ -170,9 +176,9 @@ Public Class PdfPoParser
         ' Extract shipping address from the line containing Payment Terms and IncoTerms
         For Each line In lines
             If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
-                ' Extract everything after IncoTerms: [value]
+                ' Extract everything after the IncoTerms value until end of line
                 ' Pattern: Incoterms: [value] [shipping address]
-                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z]+\s+(.+?)(?:\s*$)")
+                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z0-9\s]+?\s+(.+?)(?:\s*$)")
                 If addressMatch.Success Then
                     Dim potentialAddress = addressMatch.Groups(1).Value.Trim()
                     ' Only use it if it's not empty and doesn't start with the IncoTerms value
