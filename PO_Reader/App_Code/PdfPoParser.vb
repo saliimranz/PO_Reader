@@ -193,14 +193,8 @@ Public Class PdfPoParser
             h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\.?\s*Total\s*Before\s*VAT")
         End If
         
-        ' Try multiple patterns for VAT
-        h.VAT = MoneyAfterLabelLine(normalized, "VAT\d+%")
-        If Not h.VAT.HasValue Then
-            h.VAT = MoneyAfterLabelLine(normalized, "VAT\s*\d+%")
-        End If
-        If Not h.VAT.HasValue Then
-            h.VAT = MoneyAfterLabelLine(normalized, "VAT(?:\s*\d+%)*")
-        End If
+        ' Extract VAT using dedicated function
+        h.VAT = ExtractVATValue(normalized, lines)
 
         ' Try multiple patterns for Total
         h.Total = MoneyAfterLabelLine(normalized, "Grand\s*Total")
@@ -219,13 +213,7 @@ Public Class PdfPoParser
                     End If
                 End If
 
-                ' Look for VAT
-                If Not h.VAT.HasValue AndAlso line.Contains("VAT") AndAlso line.Contains("%") Then
-                    Dim vatMatch = Regex.Match(line, "VAT\d+%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)")
-                    If vatMatch.Success Then
-                        h.VAT = ParseDec(vatMatch.Groups(1).Value)
-                    End If
-                End If
+                ' VAT extraction is now handled by the dedicated ExtractVATValue function
 
                 ' Look for Grand Total
                 If Not h.Total.HasValue AndAlso line.Contains("Grand Total") Then
@@ -343,6 +331,61 @@ Public Class PdfPoParser
             End If
         Next
 
+        Return Nothing
+    End Function
+
+    Private Function ExtractVATValue(normalized As String, lines As List(Of String)) As Decimal?
+        ' Try multiple patterns for VAT extraction
+        Dim vatPatterns = {
+            "VAT\s*\d+%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)",  ' VAT 5% 25,000.00
+            "VAT\s*%\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)",     ' VAT % 0.00
+            "VAT\s*\d+%\s*(\d+(?:,\d{3})*(?:\.\d{2})?)",      ' VAT 5% 25000.00 (without commas)
+            "VAT\s*%\s*(\d+(?:,\d{3})*(?:\.\d{2})?)"          ' VAT % 0.00 (without commas)
+        }
+        
+        ' First try the MoneyAfterLabelLine approach
+        Dim vatValue = MoneyAfterLabelLine(normalized, "VAT\d+%")
+        If vatValue.HasValue Then Return vatValue
+        
+        vatValue = MoneyAfterLabelLine(normalized, "VAT\s*\d+%")
+        If vatValue.HasValue Then Return vatValue
+        
+        vatValue = MoneyAfterLabelLine(normalized, "VAT\s*%")
+        If vatValue.HasValue Then Return vatValue
+        
+        ' Try direct pattern matching on each line
+        For Each line In lines
+            If line.Contains("VAT") AndAlso line.Contains("%") Then
+                For Each pattern In vatPatterns
+                    Dim match = Regex.Match(line, pattern, RegexOptions.IgnoreCase)
+                    If match.Success AndAlso match.Groups.Count > 1 Then
+                        Dim valueStr = match.Groups(1).Value
+                        If Not String.IsNullOrEmpty(valueStr) Then
+                            Dim parsedValue = ParseDec(valueStr)
+                            If parsedValue <> 0 Then
+                                Return parsedValue
+                            End If
+                        End If
+                    End If
+                Next
+            End If
+        Next
+        
+        ' Try looking for VAT value on the next line after "VAT %"
+        For i = 0 To lines.Count - 1
+            Dim line = lines(i)
+            If line.Contains("VAT") AndAlso line.Contains("%") Then
+                ' Check if the next line contains a number
+                If i + 1 < lines.Count Then
+                    Dim nextLine = lines(i + 1).Trim()
+                    Dim nextLineMatch = Regex.Match(nextLine, "^(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)$")
+                    If nextLineMatch.Success Then
+                        Return ParseDec(nextLineMatch.Groups(1).Value)
+                    End If
+                End If
+            End If
+        Next
+        
         Return Nothing
     End Function
 
