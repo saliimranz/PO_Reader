@@ -752,22 +752,32 @@ Public Class PdfPoParser
         
         ' Split the line into parts
         Dim parts() As String = line.Split()
-        If parts.Length < 2 Then Return False
+        If parts.Length < 1 Then Return False
         
-        Dim lineNumber As String = parts(0).Trim()
-        Dim itemCode As String = parts(1).Trim()
+        Dim firstPart As String = parts(0).Trim()
         
-        ' Check if line number follows "x.1" pattern (where x is any number)
-        If Not Regex.IsMatch(lineNumber, "^\d+\.1$") Then
-            Return False
+        ' Check for concatenated format: "x.y" followed by item code (like "1.143560-26010-" or "2.130212JR-KOYOWHEEL")
+        ' This covers both "x.1" pattern and other patterns like "2.1", "3.1", etc.
+        ' Item code can be "xxxxx-xxxxx" or other patterns like "xxxxxJR-KOYOWHEEL"
+        If Regex.IsMatch(firstPart, "^\d+\.\d+\w{4,}") Then
+            Return True
         End If
         
-        ' Check if item code follows "xxxxx-xxxxx" pattern (5+ chars, dash, 4+ chars)
-        If Not Regex.IsMatch(itemCode, "^\w{5}-\w{4,}$") Then
-            Return False
+        ' Check for separated format: "x.y" followed by item code (like "1.1 90381-35001")
+        If parts.Length >= 2 Then
+            Dim lineNumber As String = firstPart
+            Dim itemCode As String = parts(1).Trim()
+            
+            ' Check if line number follows "x.y" pattern (where x and y are any numbers)
+            If Regex.IsMatch(lineNumber, "^\d+\.\d+$") Then
+                ' Check if item code has reasonable length (4+ characters) and contains alphanumeric characters
+                If Regex.IsMatch(itemCode, "^\w{4,}$") AndAlso itemCode.Length >= 4 Then
+                    Return True
+                End If
+            End If
         End If
         
-        ' Both validations passed
-        Return True
+        ' Neither format matched
+        Return False
     End Function
 End Class
