@@ -677,6 +677,12 @@ Public Class PdfPoParser
             Return match.Groups(1).Value
         End If
         
+        ' Try to find any number at the start of the line, even with some prefix
+        match = Regex.Match(line.Trim(), "^[^\\d]*(\\d+(?:\\.\\d+)?)")
+        If match.Success Then
+            Return match.Groups(1).Value
+        End If
+        
         Return String.Empty
     End Function
 
@@ -702,16 +708,15 @@ Public Class PdfPoParser
             ' Extract line number from the beginning of the line (first column)
             Dim lineNumber = ExtractLineNumberFromLine(line)
             
-            ' TEMPORARILY DISABLE line number validation to test if this is the issue
             ' Only validate line number sequence if we have a valid line number
             ' This allows lines without line numbers to pass through (like continuation lines)
-            'If Not String.IsNullOrWhiteSpace(lineNumber) Then
-            '    If Not ValidateLineNumberSequence(lineNumber, expectedLineNumber) Then
-            '        ' If line number validation fails, just skip this individual item
-            '        ' Don't treat it as an end marker - continue processing other items
-            '        Continue For
-            '    End If
-            'End If
+            If Not String.IsNullOrWhiteSpace(lineNumber) Then
+                If Not ValidateLineNumberSequence(lineNumber, expectedLineNumber) Then
+                    ' If line number validation fails, just skip this individual item
+                    ' Don't treat it as an end marker - continue processing other items
+                    Continue For
+                End If
+            End If
 
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
