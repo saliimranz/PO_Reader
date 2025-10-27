@@ -179,7 +179,8 @@ Public Class PdfPoParser
             If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
                 ' Extract shipping address after the Incoterms value
                 ' Look for common shipping address indicators after the Incoterms value
-                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*?\s+(?:Shipping|Address|All\s+Shipping|All\s+Address)?\s*(.+?)(?:\s*$)")
+                ' Stop reading when "line" word is encountered as it indicates start of line items
+                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*?\s+(?:Shipping|Address|All\s+Shipping|All\s+Address)?\s*(.+?)(?=\s+line\s|$)", RegexOptions.IgnoreCase)
                 If addressMatch.Success Then
                     Dim potentialAddress = addressMatch.Groups(1).Value.Trim()
                     ' Only use it if it's not empty and looks like an address
