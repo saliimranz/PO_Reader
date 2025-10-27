@@ -158,12 +158,13 @@ Public Class PdfPoParser
                     h.PaymentTerms = paymentMatch.Groups(1).Value.Trim()
                 End If
                 
-                ' Extract IncoTerms - get everything after Incoterms: until the next label or end of line
-                Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z0-9\s]+?)(?:\s+[A-Z][a-z]*:|$)")
+                ' Extract IncoTerms with improved pattern to handle "None All" and similar cases
+                ' This pattern stops at common shipping address indicators or capitalized words
+                Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*?)(?=\s+(?:Shipping|Address|All|[A-Z][a-z]{2,})\s|$)")
                 If incoMatch.Success Then
                     h.IncoTerms = incoMatch.Groups(1).Value.Trim()
                 Else
-                    ' Try a more flexible pattern for cases with shipping address
+                    ' Fallback pattern for cases where the above doesn't match
                     incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z0-9\s]+?)(?:\s+[A-Z][a-z]+\s|$)")
                     If incoMatch.Success Then
                         h.IncoTerms = incoMatch.Groups(1).Value.Trim()
@@ -176,13 +177,15 @@ Public Class PdfPoParser
         ' Extract shipping address from the line containing Payment Terms and IncoTerms
         For Each line In lines
             If line.Contains("Payment Terms:") AndAlso line.Contains("Incoterms:") Then
-                ' Extract everything after the IncoTerms value until end of line
-                ' Pattern: Incoterms: [value] [shipping address]
-                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z0-9\s]+?\s+(.+?)(?:\s*$)")
+                ' Extract shipping address after the Incoterms value
+                ' Look for common shipping address indicators after the Incoterms value
+                Dim addressMatch = Regex.Match(line, "Incoterms:\s*[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*?\s+(?:Shipping|Address|All\s+Shipping|All\s+Address)?\s*(.+?)(?:\s*$)")
                 If addressMatch.Success Then
                     Dim potentialAddress = addressMatch.Groups(1).Value.Trim()
-                    ' Only use it if it's not empty and doesn't start with the IncoTerms value
-                    If Not String.IsNullOrEmpty(potentialAddress) AndAlso Not potentialAddress.StartsWith("Incoterms:") Then
+                    ' Only use it if it's not empty and looks like an address
+                    If Not String.IsNullOrEmpty(potentialAddress) AndAlso 
+                       Not potentialAddress.StartsWith("Incoterms:") AndAlso
+                       potentialAddress.Length > 3 Then
                         h.Shipping_Address = potentialAddress
                         Exit For
                     End If
