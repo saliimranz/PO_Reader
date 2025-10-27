@@ -757,21 +757,14 @@ Public Class PdfPoParser
         ' Remove any whitespace
         itemCode = itemCode.Trim()
         
-        ' Check if it matches common item code patterns:
-        ' 1. xxxxx-xxxxx (5 characters, dash, 5 characters) - e.g., 90381-35001
-        ' 2. xxxxx-xxxxx (5 characters, dash, 4+ characters) - e.g., 35070-NSKCL
-        ' 3. Other alphanumeric patterns with dashes
-        Dim patterns = {
-            "^\w{5}-\w{4,}$",  ' 5 chars, dash, 4+ chars
-            "^\w{4,}-\w{4,}$"  ' 4+ chars, dash, 4+ chars
-        }
+        ' Check if it starts with the pattern "x.1" where x is a number
+        ' This is the base requirement - if it doesn't start with this pattern, reject it
+        If Not Regex.IsMatch(itemCode, "^\d+\.1") Then
+            Return False
+        End If
         
-        For Each pattern In patterns
-            If Regex.IsMatch(itemCode, pattern) Then
-                Return True
-            End If
-        Next
-        
-        Return False
+        ' If it starts with "x.1", accept it (like it was before)
+        ' The item code can have any format after the "x.1" prefix
+        Return True
     End Function
 End Class
