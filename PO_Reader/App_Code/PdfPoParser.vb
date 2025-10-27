@@ -663,7 +663,14 @@ Public Class PdfPoParser
             Return True
         End If
         
-        ' If it's not the expected number, it might be garbage
+        ' If it's a reasonable number (within 10 of expected), accept it and reset sequence
+        ' This handles cases where the sequence might have gaps
+        If currentLineNumber > expectedLineNumber - 10 AndAlso currentLineNumber < expectedLineNumber + 10 Then
+            expectedLineNumber = currentLineNumber + 1
+            Return True
+        End If
+        
+        ' If it's not a reasonable number, it might be garbage
         Return False
     End Function
 
@@ -708,13 +715,22 @@ Public Class PdfPoParser
             ' Extract line number from the beginning of the line (first column)
             Dim lineNumber = ExtractLineNumberFromLine(line)
             
+            ' DEBUG: Log what we're finding
+            'Console.WriteLine($"Line: '{line}' -> LineNumber: '{lineNumber}' -> Expected: {expectedLineNumber}")
+            
             ' Only validate line number sequence if we have a valid line number
             ' This allows lines without line numbers to pass through (like continuation lines)
             If Not String.IsNullOrWhiteSpace(lineNumber) Then
+                ' Make validation more lenient - only reject if the number is clearly wrong
                 If Not ValidateLineNumberSequence(lineNumber, expectedLineNumber) Then
-                    ' If line number validation fails, just skip this individual item
-                    ' Don't treat it as an end marker - continue processing other items
-                    Continue For
+                    ' Only reject if the line number is way off (more than 50 away from expected)
+                    Dim currentLineNumber As Integer
+                    If Integer.TryParse(Regex.Match(lineNumber.Trim(), "^(\d+)").Groups(1).Value, currentLineNumber) Then
+                        If Math.Abs(currentLineNumber - expectedLineNumber) > 50 Then
+                            'Console.WriteLine($"REJECTED: Line number {lineNumber} is way off from expected {expectedLineNumber}")
+                            Continue For
+                        End If
+                    End If
                 End If
             End If
 
