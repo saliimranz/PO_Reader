@@ -40,9 +40,27 @@ Public Class PdfPoParser
         End If
 
         Dim details As New List(Of ParsedDetail)
+        Dim foundEndMarker As Boolean = False
+        
         For Each p In pages
-            details.AddRange(ParseItemsOnPage(p))
+            If foundEndMarker Then
+                Exit For
+            End If
+            
+            Dim pageDetails = ParseItemsOnPage(p)
+            details.AddRange(pageDetails)
+            
+            ' Check if any line on this page indicates end of line items
+            Dim pageText = p.Text
+            Dim pageLines = pageText.Split({vbCrLf, vbLf, vbCr}, StringSplitOptions.RemoveEmptyEntries)
+            For Each line In pageLines
+                If IsEndOfLineItemsSection(line) Then
+                    foundEndMarker = True
+                    Exit For
+                End If
+            Next
         Next
+        
         details = CoalesceWrapped(details)
         AssignLineNumbers(details)
 
@@ -575,6 +593,49 @@ Public Class PdfPoParser
         Return False
     End Function
 
+    Private Function IsEndOfLineItemsSection(line As String) As Boolean
+        If String.IsNullOrWhiteSpace(line) Then Return False
+        
+        Dim normalized = line.Trim()
+        
+        ' Check for various patterns that indicate end of line items section
+        Dim endPatterns = {
+            "Grand\s*Total",
+            "Sub\s*Total",
+            "Sub\.?\s*Total\s*Before\s*VAT",
+            "Total\s*Discount",
+            "VAT\s*\d*%",
+            "TERMS\s+AND\s+CONDITIONS",
+            "TERMS\s+&\s+CONDITIONS",
+            "Page\s+\d+\s+of\s+\d+",
+            "Purchase\s+Order\s+Description",
+            "Supplier\s+Details",
+            "Invoice\s+Address",
+            "Supplier\s+Address",
+            "Payment\s+Terms",
+            "Incoterms",
+            "Shipping\s+Address"
+        }
+        
+        For Each pattern In endPatterns
+            If Regex.IsMatch(normalized, pattern, RegexOptions.IgnoreCase) Then
+                Return True
+            End If
+        Next
+        
+        ' Check for lines that contain only numbers and currency symbols (likely totals)
+        If Regex.IsMatch(normalized, "^\s*[\d,]+\.?\d*\s*$") AndAlso (normalized.Contains(".") OrElse normalized.Length > 5) Then
+            Return True
+        End If
+        
+        ' Check for lines that start with common total indicators
+        If Regex.IsMatch(normalized, "^(Total|Sub|Grand|VAT|Discount)\s", RegexOptions.IgnoreCase) Then
+            Return True
+        End If
+        
+        Return False
+    End Function
+
     ' ---------- items parsing ----------
     Private Function ParseItemsOnPage(p As PageData) As List(Of ParsedDetail)
         Dim words = p.Words.OrderBy(Function(w) -w.BoundingBox.Top).ThenBy(Function(w) w.BoundingBox.Left).ToList()
@@ -586,11 +647,25 @@ Public Class PdfPoParser
         Dim cuts = New List(Of Double) From {0, 40, 110, 190, 240, 290, 330, 360, 400, 450, 500}
 
         Dim list As New List(Of ParsedDetail)
+        Dim foundEndMarker As Boolean = False
+        
         For Each r In rows
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
+            
+            ' Check for end markers that indicate we should stop processing line items
+            If IsEndOfLineItemsSection(line) Then
+                foundEndMarker = True
+                Continue For
+            End If
+            
+            ' If we've already found an end marker, stop processing
+            If foundEndMarker Then
+                Continue For
+            End If
+            
+            ' Skip header rows
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
-            If Regex.IsMatch(line, "Grand\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
 
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
