@@ -48,10 +48,7 @@ Public Class PdfPoParser
                 Exit For
             End If
             
-            Dim pageDetails = ParseItemsOnPage(p, expectedLineNumber)
-            details.AddRange(pageDetails)
-            
-            ' Check if any line on this page indicates end of line items
+            ' Check if any line on this page indicates end of line items BEFORE processing
             Dim pageText = p.Text
             Dim pageLines = pageText.Split({vbCrLf, vbLf, vbCr}, StringSplitOptions.RemoveEmptyEntries)
             For Each line In pageLines
@@ -60,6 +57,12 @@ Public Class PdfPoParser
                     Exit For
                 End If
             Next
+            
+            ' Only process the page if we haven't found an end marker
+            If Not foundEndMarker Then
+                Dim pageDetails = ParseItemsOnPage(p, expectedLineNumber)
+                details.AddRange(pageDetails)
+            End If
         Next
         
         details = CoalesceWrapped(details)
@@ -688,22 +691,10 @@ Public Class PdfPoParser
         Dim cuts = New List(Of Double) From {0, 40, 110, 190, 240, 290, 330, 360, 400, 450, 500}
 
         Dim list As New List(Of ParsedDetail)
-        Dim foundEndMarker As Boolean = False
         
         For Each r In rows
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
-            
-            ' Check for end markers that indicate we should stop processing line items
-            If IsEndOfLineItemsSection(line) Then
-                foundEndMarker = True
-                Continue For
-            End If
-            
-            ' If we've already found an end marker, stop processing
-            If foundEndMarker Then
-                Continue For
-            End If
             
             ' Skip header rows
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
@@ -715,10 +706,8 @@ Public Class PdfPoParser
             ' This allows lines without line numbers to pass through (like continuation lines)
             If Not String.IsNullOrWhiteSpace(lineNumber) Then
                 If Not ValidateLineNumberSequence(lineNumber, expectedLineNumber) Then
-                    ' If line number validation fails, check if this is an end marker
-                    If IsEndOfLineItemsSection(line) Then
-                        foundEndMarker = True
-                    End If
+                    ' If line number validation fails, just skip this individual item
+                    ' Don't treat it as an end marker - continue processing other items
                     Continue For
                 End If
             End If
