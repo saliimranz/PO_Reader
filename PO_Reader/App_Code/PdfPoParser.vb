@@ -41,13 +41,14 @@ Public Class PdfPoParser
 
         Dim details As New List(Of ParsedDetail)
         Dim foundEndMarker As Boolean = False
+        Dim expectedLineNumber As Integer = 1 ' Start with line number 1
         
         For Each p In pages
             If foundEndMarker Then
                 Exit For
             End If
             
-            Dim pageDetails = ParseItemsOnPage(p)
+            Dim pageDetails = ParseItemsOnPage(p, expectedLineNumber)
             details.AddRange(pageDetails)
             
             ' Check if any line on this page indicates end of line items
@@ -636,8 +637,35 @@ Public Class PdfPoParser
         Return False
     End Function
 
+    Private Function ValidateLineNumberSequence(itemCode As String, ByRef expectedLineNumber As Integer) As Boolean
+        If String.IsNullOrWhiteSpace(itemCode) Then Return False
+        
+        ' Check if the item code matches the expected line number pattern (e.g., "1.1", "2.1", "3.1")
+        ' Also handle patterns like "1", "2", "3" or "1.0", "2.0", "3.0"
+        Dim lineNumberMatch = Regex.Match(itemCode.Trim(), "^(\d+)(?:\.\d+)?$")
+        If Not lineNumberMatch.Success Then Return False
+        
+        Dim currentLineNumber As Integer
+        If Not Integer.TryParse(lineNumberMatch.Groups(1).Value, currentLineNumber) Then Return False
+        
+        ' For the first item, accept any number and set it as the starting point
+        If expectedLineNumber = 1 AndAlso currentLineNumber >= 1 Then
+            expectedLineNumber = currentLineNumber + 1
+            Return True
+        End If
+        
+        ' Check if this is the expected line number
+        If currentLineNumber = expectedLineNumber Then
+            expectedLineNumber += 1
+            Return True
+        End If
+        
+        ' If it's not the expected number, it might be garbage
+        Return False
+    End Function
+
     ' ---------- items parsing ----------
-    Private Function ParseItemsOnPage(p As PageData) As List(Of ParsedDetail)
+    Private Function ParseItemsOnPage(p As PageData, ByRef expectedLineNumber As Integer) As List(Of ParsedDetail)
         Dim words = p.Words.OrderBy(Function(w) -w.BoundingBox.Top).ThenBy(Function(w) w.BoundingBox.Left).ToList()
         Dim rows = RowsFromLineAnchors(words, 12.0)
         If rows Is Nothing Then
@@ -681,6 +709,15 @@ Public Class PdfPoParser
             If rowText.Contains("SUPPLIER DETAILS") OrElse rowText.StartsWith("LINE ITEM CODE") Then Continue For
 
             If Regex.IsMatch(it.Description, "^(SUPPLIER|DETAILS|TERMS|PAYMENT|INVOICE|DELIVERY|ADDRESS)\b", RegexOptions.IgnoreCase) Then
+                Continue For
+            End If
+
+            ' Validate line number sequence
+            If Not ValidateLineNumberSequence(it.ItemCode, expectedLineNumber) Then
+                ' If line number validation fails, check if this is an end marker
+                If IsEndOfLineItemsSection(line) Then
+                    foundEndMarker = True
+                End If
                 Continue For
             End If
 
