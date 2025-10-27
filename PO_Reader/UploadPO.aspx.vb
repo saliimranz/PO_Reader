@@ -78,7 +78,7 @@ Public Class UploadPO
 
 
         Try
-            Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString)
+            Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
             Dim masterId = repo.InsertMaster(Parsed.Master)
             repo.InsertDetails(masterId, Parsed.Details)
 
