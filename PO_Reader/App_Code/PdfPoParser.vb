@@ -40,8 +40,13 @@ Public Class PdfPoParser
         End If
 
         Dim details As New List(Of ParsedDetail)
+        Dim foundGrandTotal As Boolean = False
         For Each p In pages
-            details.AddRange(ParseItemsOnPage(p))
+            If foundGrandTotal Then
+                Exit For
+            End If
+            Dim pageDetails = ParseItemsOnPage(p, foundGrandTotal)
+            details.AddRange(pageDetails)
         Next
         details = CoalesceWrapped(details)
         AssignLineNumbers(details)
@@ -576,7 +581,7 @@ Public Class PdfPoParser
     End Function
 
     ' ---------- items parsing ----------
-    Private Function ParseItemsOnPage(p As PageData) As List(Of ParsedDetail)
+    Private Function ParseItemsOnPage(p As PageData, ByRef foundGrandTotal As Boolean) As List(Of ParsedDetail)
         Dim words = p.Words.OrderBy(Function(w) -w.BoundingBox.Top).ThenBy(Function(w) w.BoundingBox.Left).ToList()
         Dim rows = RowsFromLineAnchors(words, 12.0)
         If rows Is Nothing Then
@@ -586,11 +591,25 @@ Public Class PdfPoParser
         Dim cuts = New List(Of Double) From {0, 40, 110, 190, 240, 290, 330, 360, 400, 450, 500}
 
         Dim list As New List(Of ParsedDetail)
+        
         For Each r In rows
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
+            
+            ' Check if we've reached the end of line items (grand total/subtotal section)
+            ' Look for various patterns that indicate the end of line items
+            If Regex.IsMatch(line, "Grand\s*Total|Sub\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+|Total\s+Amount|Final\s+Total", RegexOptions.IgnoreCase) Then
+                foundGrandTotal = True
+                Continue For
+            End If
+            
+            ' If we've found grand total, stop processing further rows
+            If foundGrandTotal Then
+                Continue For
+            End If
+            
+            ' Skip header rows
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
-            If Regex.IsMatch(line, "Grand\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
 
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
@@ -609,6 +628,14 @@ Public Class PdfPoParser
                 Continue For
             End If
 
+            ' Validate item code format (xxxxx-xxxxx) - 10 characters with a dash in the middle
+            If Not String.IsNullOrWhiteSpace(it.ItemCode) Then
+                If Not IsValidItemCode(it.ItemCode) Then
+                    Continue For
+                End If
+            End If
+
+            ' Only add items that have valid item codes or meaningful amounts
             If Not String.IsNullOrWhiteSpace(it.ItemCode) OrElse (it.Amount.HasValue AndAlso it.Amount.Value > 0) Then
                 list.Add(it)
             End If
@@ -723,4 +750,28 @@ Public Class PdfPoParser
             index += 1
         Next
     End Sub
+
+    Private Function IsValidItemCode(itemCode As String) As Boolean
+        If String.IsNullOrWhiteSpace(itemCode) Then Return False
+        
+        ' Remove any whitespace
+        itemCode = itemCode.Trim()
+        
+        ' Check if it matches common item code patterns:
+        ' 1. xxxxx-xxxxx (5 characters, dash, 5 characters) - e.g., 90381-35001
+        ' 2. xxxxx-xxxxx (5 characters, dash, 4+ characters) - e.g., 35070-NSKCL
+        ' 3. Other alphanumeric patterns with dashes
+        Dim patterns = {
+            "^\w{5}-\w{4,}$",  ' 5 chars, dash, 4+ chars
+            "^\w{4,}-\w{4,}$"  ' 4+ chars, dash, 4+ chars
+        }
+        
+        For Each pattern In patterns
+            If Regex.IsMatch(itemCode, pattern) Then
+                Return True
+            End If
+        Next
+        
+        Return False
+    End Function
 End Class
