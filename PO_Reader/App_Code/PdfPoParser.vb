@@ -611,6 +611,11 @@ Public Class PdfPoParser
             ' Skip header rows
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
 
+            ' Validate the line item format before processing
+            If Not IsValidLineItem(line) Then
+                Continue For
+            End If
+
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
             it.Description = Slice(r, cuts, 2)
@@ -628,17 +633,8 @@ Public Class PdfPoParser
                 Continue For
             End If
 
-            ' Validate item code format (xxxxx-xxxxx) - 10 characters with a dash in the middle
-            If Not String.IsNullOrWhiteSpace(it.ItemCode) Then
-                If Not IsValidItemCode(it.ItemCode) Then
-                    Continue For
-                End If
-            End If
-
-            ' Only add items that have valid item codes or meaningful amounts
-            If Not String.IsNullOrWhiteSpace(it.ItemCode) OrElse (it.Amount.HasValue AndAlso it.Amount.Value > 0) Then
-                list.Add(it)
-            End If
+            ' Add the validated line item
+            list.Add(it)
         Next
         Return list
     End Function
@@ -751,20 +747,27 @@ Public Class PdfPoParser
         Next
     End Sub
 
-    Private Function IsValidItemCode(itemCode As String) As Boolean
-        If String.IsNullOrWhiteSpace(itemCode) Then Return False
+    Private Function IsValidLineItem(line As String) As Boolean
+        If String.IsNullOrWhiteSpace(line) Then Return False
         
-        ' Remove any whitespace
-        itemCode = itemCode.Trim()
+        ' Split the line into parts
+        Dim parts() As String = line.Split()
+        If parts.Length < 2 Then Return False
         
-        ' Check if it starts with the pattern "x.1" where x is a number
-        ' This is the base requirement - if it doesn't start with this pattern, reject it
-        If Not Regex.IsMatch(itemCode, "^\d+\.1") Then
+        Dim lineNumber As String = parts(0).Trim()
+        Dim itemCode As String = parts(1).Trim()
+        
+        ' Check if line number follows "x.1" pattern (where x is any number)
+        If Not Regex.IsMatch(lineNumber, "^\d+\.1$") Then
             Return False
         End If
         
-        ' If it starts with "x.1", accept it (like it was before)
-        ' The item code can have any format after the "x.1" prefix
+        ' Check if item code follows "xxxxx-xxxxx" pattern (5+ chars, dash, 4+ chars)
+        If Not Regex.IsMatch(itemCode, "^\w{5}-\w{4,}$") Then
+            Return False
+        End If
+        
+        ' Both validations passed
         Return True
     End Function
 End Class
