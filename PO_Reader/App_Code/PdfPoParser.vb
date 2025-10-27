@@ -637,12 +637,12 @@ Public Class PdfPoParser
         Return False
     End Function
 
-    Private Function ValidateLineNumberSequence(itemCode As String, ByRef expectedLineNumber As Integer) As Boolean
-        If String.IsNullOrWhiteSpace(itemCode) Then Return False
+    Private Function ValidateLineNumberSequence(lineNumber As String, ByRef expectedLineNumber As Integer) As Boolean
+        If String.IsNullOrWhiteSpace(lineNumber) Then Return False
         
-        ' Check if the item code matches the expected line number pattern (e.g., "1.1", "2.1", "3.1")
+        ' Check if the line number matches the expected pattern (e.g., "1.1", "2.1", "3.1")
         ' Also handle patterns like "1", "2", "3" or "1.0", "2.0", "3.0"
-        Dim lineNumberMatch = Regex.Match(itemCode.Trim(), "^(\d+)(?:\.\d+)?$")
+        Dim lineNumberMatch = Regex.Match(lineNumber.Trim(), "^(\d+)(?:\.\d+)?$")
         If Not lineNumberMatch.Success Then Return False
         
         Dim currentLineNumber As Integer
@@ -662,6 +662,19 @@ Public Class PdfPoParser
         
         ' If it's not the expected number, it might be garbage
         Return False
+    End Function
+
+    Private Function ExtractLineNumberFromLine(line As String) As String
+        If String.IsNullOrWhiteSpace(line) Then Return String.Empty
+        
+        ' Extract the first number from the beginning of the line
+        ' This should be the line number (e.g., "1.1", "2.1", "3.1")
+        Dim match = Regex.Match(line.Trim(), "^(\d+(?:\.\d+)?)")
+        If match.Success Then
+            Return match.Groups(1).Value
+        End If
+        
+        Return String.Empty
     End Function
 
     ' ---------- items parsing ----------
@@ -695,6 +708,21 @@ Public Class PdfPoParser
             ' Skip header rows
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
 
+            ' Extract line number from the beginning of the line (first column)
+            Dim lineNumber = ExtractLineNumberFromLine(line)
+            
+            ' Only validate line number sequence if we have a valid line number
+            ' This allows lines without line numbers to pass through (like continuation lines)
+            If Not String.IsNullOrWhiteSpace(lineNumber) Then
+                If Not ValidateLineNumberSequence(lineNumber, expectedLineNumber) Then
+                    ' If line number validation fails, check if this is an end marker
+                    If IsEndOfLineItemsSection(line) Then
+                        foundEndMarker = True
+                    End If
+                    Continue For
+                End If
+            End If
+
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
             it.Description = Slice(r, cuts, 2)
@@ -709,15 +737,6 @@ Public Class PdfPoParser
             If rowText.Contains("SUPPLIER DETAILS") OrElse rowText.StartsWith("LINE ITEM CODE") Then Continue For
 
             If Regex.IsMatch(it.Description, "^(SUPPLIER|DETAILS|TERMS|PAYMENT|INVOICE|DELIVERY|ADDRESS)\b", RegexOptions.IgnoreCase) Then
-                Continue For
-            End If
-
-            ' Validate line number sequence
-            If Not ValidateLineNumberSequence(it.ItemCode, expectedLineNumber) Then
-                ' If line number validation fails, check if this is an end marker
-                If IsEndOfLineItemsSection(line) Then
-                    foundEndMarker = True
-                End If
                 Continue For
             End If
 
