@@ -39,6 +39,8 @@ Public Class UploadPO
                 Dim valueText As String = If(String.IsNullOrWhiteSpace(po.PONumber),
                     po.POMasterID.ToString(),
                     po.PONumber)
+                
+                
                 ddlExistingPOs.Items.Add(New ListItem(displayText, valueText))
             Next
 
@@ -183,6 +185,8 @@ Public Class UploadPO
 
         Try
             Dim selectedValue As String = ddlExistingPOs.SelectedValue
+            
+            
             Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
             Dim fetchedPO As ParsedPo = Nothing
             Dim poMasterID As Integer = 0

@@ -105,9 +105,8 @@ Public Class PoRepository
                         ' POMasterID
                         Dim poMasterID As Integer = 0
                         If Not reader.IsDBNull(ordPOMasterID) Then
-                            ' use TryCast pattern or Convert.ToInt32 to be robust
-                            Dim val = reader.GetValue(ordPOMasterID)
-                            Integer.TryParse(Convert.ToString(val), poMasterID)
+                            ' Direct access to avoid any field name confusion
+                            poMasterID = reader.GetInt32(ordPOMasterID)
                         End If
 
                         ' PONumber & SupplierName
