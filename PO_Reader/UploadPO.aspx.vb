@@ -163,13 +163,13 @@ Public Class UploadPO
             Dim totalItemsCount = details.Count
             Dim totalPages = Math.Ceiling(totalItemsCount / gvDetails.PageSize)
             Dim currentPageNum = gvDetails.PageIndex + 1
-            Dim totalAmount = details.Sum(Function(d) If(d.Amount, 0))
+            Dim totalAmountValue = details.Sum(Function(d) If(d.Amount, 0))
 
             ' Update stats bar
             statsBar.Style("display") = "block"
             totalItems.InnerText = $"Total Items: {totalItemsCount:N0}"
             currentPage.InnerText = $"Page {currentPageNum} of {totalPages}"
-            totalAmount.InnerText = $"Total Amount: {totalAmount:C2}"
+            totalAmount.InnerText = $"Total Amount: {totalAmountValue:C2}"
 
             ' Show pagination if more than one page
             If totalPages > 1 Then
