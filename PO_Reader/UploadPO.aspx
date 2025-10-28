@@ -1,4 +1,4 @@
-﻿<%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" %>
+<%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
@@ -43,20 +43,68 @@
 
             <div class="card">
                 <h3>Master (IBL_PO_Master)</h3>
-                <asp:DetailsView ID="dvMaster" runat="server" AutoGenerateRows="false" GridLines="Both" BorderWidth="1">
+                <asp:DetailsView ID="dvMaster" runat="server" AutoGenerateRows="false" GridLines="Both" BorderWidth="1" DefaultMode="Edit">
                     <Fields>
-                        <asp:BoundField DataField="PONumber" HeaderText="PONumber" />
-                        <asp:BoundField DataField="SupplierName" HeaderText="SupplierName" />
-                        <asp:BoundField DataField="SupplierNumber" HeaderText="SupplierNumber" />
-                        <asp:BoundField DataField="PODate" HeaderText="PODate" DataFormatString="{0:yyyy-MM-dd}" />
-                        <asp:BoundField DataField="Currency" HeaderText="Currency" />
-                        <asp:BoundField DataField="SubTotal" HeaderText="SubTotal" DataFormatString="{0:N2}" />
-                        <asp:BoundField DataField="VAT" HeaderText="VAT" DataFormatString="{0:N2}" />
-                        <asp:BoundField DataField="Total" HeaderText="Total" DataFormatString="{0:N2}" />
-                        <asp:BoundField DataField="PaymentTerms" HeaderText="PaymentTerms" />
-                        <asp:BoundField DataField="Shipping_Address" HeaderText="Shipping_Address" />
-                        <asp:BoundField DataField="IncoTerms" HeaderText="IncoTerms" />
-                        <asp:BoundField DataField="PODescription" HeaderText="PODescription" />
+                        <asp:TemplateField HeaderText="PONumber">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtPONumber" runat="server" Text='<%# Bind("PONumber") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="SupplierName">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtSupplierName" runat="server" Text='<%# Bind("SupplierName") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="SupplierNumber">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtSupplierNumber" runat="server" Text='<%# Bind("SupplierNumber") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="PODate">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtPODate" runat="server" Text='<%# Bind("PODate", "{0:yyyy-MM-dd}") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="Currency">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtCurrency" runat="server" Text='<%# Bind("Currency") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="SubTotal">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtSubTotal" runat="server" Text='<%# Bind("SubTotal", "{0:N2}") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="VAT">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtVAT" runat="server" Text='<%# Bind("VAT", "{0:N2}") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="Total">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtTotal" runat="server" Text='<%# Bind("Total", "{0:N2}") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="PaymentTerms">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtPaymentTerms" runat="server" Text='<%# Bind("PaymentTerms") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="Shipping_Address">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtShipping_Address" runat="server" Text='<%# Bind("Shipping_Address") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="IncoTerms">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtIncoTerms" runat="server" Text='<%# Bind("IncoTerms") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="PODescription">
+                            <EditItemTemplate>
+                                <asp:TextBox ID="txtPODescription" runat="server" TextMode="MultiLine" Rows="3" Text='<%# Bind("PODescription") %>' />
+                            </EditItemTemplate>
+                        </asp:TemplateField>
                     </Fields>
                 </asp:DetailsView>
             </div>

@@ -1,4 +1,5 @@
 Imports System
+Imports System.IO
 Imports System.Globalization
 Imports System.Linq
 Imports System.Text.RegularExpressions
@@ -18,8 +19,14 @@ Public Class PdfPoParser
     }
 
     Public Function Parse(pdfPath As String) As ParsedPo
+        Using fs As FileStream = File.OpenRead(pdfPath)
+            Return Parse(fs)
+        End Using
+    End Function
+
+    Public Function Parse(stream As Stream) As ParsedPo
         Dim pages As New List(Of PageData)
-        Using doc = PdfDocument.Open(pdfPath)
+        Using doc = PdfDocument.Open(stream)
             For Each p In doc.GetPages()
                 pages.Add(New PageData(p))
             Next
@@ -57,7 +64,6 @@ Public Class PdfPoParser
         Next
         details = CoalesceWrapped(details)
         AssignLineNumbers(details)
-
 
         Return New ParsedPo With {.Master = master, .Details = details}
     End Function
