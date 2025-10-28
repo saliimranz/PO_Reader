@@ -40,7 +40,19 @@ Public Class PdfPoParser
         End If
 
         Dim details As New List(Of ParsedDetail)
+        Dim stopProcessing As Boolean = False
+        
         For Each p In pages
+            ' If we've already found the end marker, stop processing all subsequent pages
+            If stopProcessing Then
+                Exit For
+            End If
+            
+            ' Check if this page contains the end marker
+            If p.Text.Contains("Grand Total Amount in Words") Then
+                stopProcessing = True
+            End If
+            
             details.AddRange(ParseItemsOnPage(p))
         Next
         details = CoalesceWrapped(details)
@@ -590,7 +602,11 @@ Public Class PdfPoParser
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
-            If Regex.IsMatch(line, "Grand\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
+            
+            ' Check for end marker - if found, stop processing this page and return what we have so far
+            If Regex.IsMatch(line, "Grand\s+Total\s+Amount\s+in\s+Words", RegexOptions.IgnoreCase) Then
+                Return list
+            End If
 
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)

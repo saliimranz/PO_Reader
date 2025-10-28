@@ -1,0 +1,95 @@
+COMPLETE PDF PARSING FLOW DIAGRAM
+=====================================
+
+1. PDF INPUT
+   └── PdfDocument.Open(pdfPath)
+       └── Extract all pages from PDF
+
+2. PAGE EXTRACTION
+   └── For each page:
+       ├── Extract Words (with X,Y coordinates)
+       ├── Extract Text (full text content)
+       └── Create PageData object
+
+3. MASTER DATA PARSING (Header Information)
+   └── Concatenate all page text
+       └── FillHeader() - Extract:
+           ├── PO Number
+           ├── Supplier Name/Number
+           ├── Date
+           ├── Currency
+           ├── Payment Terms
+           ├── Shipping Address
+           ├── Sub Total, VAT, Grand Total
+           └── PO Description
+
+4. LINE ITEMS PARSING (Page by Page)
+   └── For each page:
+       ├── CHECK: Does page contain "Grand Total Amount in Words"?
+       │   ├── YES → STOP PROCESSING (Exit For loop)
+       │   └── NO → Continue to process this page
+       │
+       └── ParseItemsOnPage():
+           ├── Group words into rows (2 methods):
+           │   ├── Method 1: RowsFromLineAnchors
+           │   │   └── Find line numbers (1.1, 2.1, etc.) as anchors
+           │   │       └── Group words by Y-coordinate (12px tolerance)
+           │   └── Method 2: GroupByY (fallback)
+           │       └── Group words by Y-coordinate (6px tolerance)
+           │
+           ├── Define column cuts: [0, 40, 110, 190, 240, 290, 330, 360, 400, 450, 500]
+           │
+           └── For each row:
+               ├── Sort words by X-coordinate (left to right)
+               ├── Join words into line text
+               ├── Skip header lines (contains: Line, Code, Description, etc.)
+               ├── Skip end marker (contains: "Grand Total Amount in Words")
+               │
+               ├── Extract line item data using Slice():
+               │   ├── ItemCode = Slice(r, cuts, 1)     // Column 1
+               │   ├── Description = Slice(r, cuts, 2)   // Column 2
+               │   ├── DeliveryDate = Slice(r, cuts, 3)  // Column 3
+               │   ├── UOM = Slice(r, cuts, 5)          // Column 5
+               │   ├── Qty = Slice(r, cuts, 6)          // Column 6
+               │   ├── UnitPrice = Slice(r, cuts, 7)     // Column 7
+               │   ├── NetPrice = Slice(r, cuts, 9)      // Column 9
+               │   └── Amount = Slice(r, cuts, 10)       // Column 10
+               │
+               ├── Filter garbage:
+               │   ├── Skip "SUPPLIER DETAILS"
+               │   ├── Skip "LINE ITEM CODE"
+               │   └── Skip common words in Description
+               │
+               ├── Validate line item:
+               │   ├── Has ItemCode OR
+               │   └── Has Amount > 0
+               │
+               └── Add to line items list
+
+5. POST-PROCESSING
+   ├── CoalesceWrapped()
+   │   └── Merge wrapped descriptions
+   │       └── Combine continuation lines
+   │
+   ├── AssignLineNumbers()
+   │   └── Add sequential line numbers (1, 2, 3, etc.)
+   │
+   └── Return ParsedPo object:
+       ├── Master: All header information
+       └── Details: List of line items
+
+KEY POINTS:
+===========
+- The parsing is PAGE-BASED, not line-based
+- Each page is checked for "Grand Total Amount in Words" BEFORE processing
+- If found, the entire page and all subsequent pages are skipped
+- Words are grouped into rows based on Y-coordinate positioning
+- Rows are sliced into columns using fixed X-coordinate cuts
+- Multiple filtering steps remove garbage data
+- Final validation ensures only valid line items are included
+
+CURRENT END MARKER LOGIC:
+========================
+1. Page-level check: If page contains "Grand Total Amount in Words" → STOP
+2. Row-level check: If row contains "Grand Total Amount in Words" → Skip row
+3. This creates a double safety net for the end marker
