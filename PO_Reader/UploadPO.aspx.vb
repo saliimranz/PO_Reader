@@ -98,7 +98,10 @@ Public Class UploadPO
             ddlExistingPOs.SelectedIndex = 0
             
             ' Hide fetch section when uploading
-            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "HideFetchSection", "document.getElementById('fetchSection').style.display = 'none';", True)
+            Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
+            If sm IsNot Nothing Then
+                sm.RegisterStartupScript(Me, Me.GetType(), "HideFetchSection", "document.getElementById('fetchSection').style.display = 'none';", True)
+            End If
             
             ShowInfo("✅ Preview generated successfully. Please verify the data and click 'Save to Database' when ready.")
         Catch ex As Exception
@@ -174,7 +177,10 @@ Public Class UploadPO
             LoadExistingPOs() ' Refresh the dropdown
             
             ' Show fetch section and reset after successful save
-            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowFetchSection", "document.getElementById('fetchSection').style.display = 'block';", True)
+            Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
+            If sm IsNot Nothing Then
+                sm.RegisterStartupScript(Me, Me.GetType(), "ShowFetchSection", "document.getElementById('fetchSection').style.display = 'block';", True)
+            End If
             ResetUI()
             
             ShowInfo("✅ Saved successfully.")
@@ -251,7 +257,10 @@ Public Class UploadPO
                 btnUpload.Enabled = False
                 
                 ' Hide upload section when fetching PO
-                ScriptManager.RegisterStartupScript(Me, Me.GetType(), "HideUploadSection", "document.getElementById('uploadSection').style.display = 'none';", True)
+                Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
+                If sm IsNot Nothing Then
+                    sm.RegisterStartupScript(Me, Me.GetType(), "HideUploadSection", "document.getElementById('uploadSection').style.display = 'none';", True)
+                End If
 
                 ShowInfo("✅ PO fetched successfully. You can now edit the details and click 'Update Changes' to save.")
             Else
@@ -325,7 +334,10 @@ Public Class UploadPO
             LoadExistingPOs() ' Refresh the dropdown
             
             ' Show upload section and reset after successful update
-            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowUploadSection", "document.getElementById('uploadSection').style.display = 'block';", True)
+            Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
+            If sm IsNot Nothing Then
+                sm.RegisterStartupScript(Me, Me.GetType(), "ShowUploadSection", "document.getElementById('uploadSection').style.display = 'block';", True)
+            End If
             ResetUI()
             
             ShowInfo("✅ PO updated successfully.")

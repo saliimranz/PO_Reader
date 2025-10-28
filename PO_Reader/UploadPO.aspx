@@ -1,7 +1,6 @@
 <%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" MasterPageFile="~/Site.Master" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
-    <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
     <style>
         .po-container {
             background: #f8f9fa;
