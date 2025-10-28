@@ -163,6 +163,13 @@ Public Class UploadPO
             Parsed.Master = m
 
             Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
+            
+            ' Check if PO Number already exists before inserting
+            If Not String.IsNullOrWhiteSpace(m.PONumber) AndAlso repo.PONumberExists(m.PONumber) Then
+                ShowError($"❌ Purchase Order with number '{m.PONumber}' already exists in the database. Please use a different PO number or update the existing one.")
+                Return
+            End If
+            
             Dim masterId = repo.InsertMaster(Parsed.Master)
             repo.InsertDetails(masterId, Parsed.Details)
 

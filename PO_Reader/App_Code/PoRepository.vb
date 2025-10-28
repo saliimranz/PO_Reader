@@ -422,6 +422,19 @@ Public Class PoRepository
     End Sub
 
 
+    Public Function PONumberExists(poNumber As String) As Boolean
+        If String.IsNullOrWhiteSpace(poNumber) Then Return False
+        
+        Using con As New SqlConnection(_cs)
+            con.Open()
+            Using cmd As New SqlCommand("SELECT COUNT(1) FROM dbo.IBL_PO_Master WHERE PONumber = @PONumber", con)
+                cmd.Parameters.AddWithValue("@PONumber", poNumber)
+                Dim count As Integer = CInt(cmd.ExecuteScalar())
+                Return count > 0
+            End Using
+        End Using
+    End Function
+
     Private Function NullIf(v As String) As Object
         If String.IsNullOrWhiteSpace(v) Then Return DBNull.Value
         Return v
