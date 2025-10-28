@@ -97,23 +97,23 @@ Public Class UploadPO
                 Dim dt As DateTime
                 If DateTime.TryParse(txtPODate.Text, dt) Then m.PODate = dt
             End If
-            If txtCurrency Is Not Nothing Then m.Currency = txtCurrency.Text
-            If txtSubTotal Is Not Nothing Then
+            If txtCurrency IsNot Nothing Then m.Currency = txtCurrency.Text
+            If txtSubTotal IsNot Nothing Then
                 Dim d As Decimal
                 If Decimal.TryParse(txtSubTotal.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.SubTotal = d
             End If
-            If txtVAT Is Not Nothing Then
+            If txtVAT IsNot Nothing Then
                 Dim d As Decimal
                 If Decimal.TryParse(txtVAT.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.VAT = d
             End If
-            If txtTotal Is Not Nothing Then
+            If txtTotal IsNot Nothing Then
                 Dim d As Decimal
                 If Decimal.TryParse(txtTotal.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.Total = d
             End If
-            If txtPaymentTerms Is Not Nothing Then m.PaymentTerms = txtPaymentTerms.Text
-            If txtShipping_Address Is Not Nothing Then m.Shipping_Address = txtShipping_Address.Text
-            If txtIncoTerms Is Not Nothing Then m.IncoTerms = txtIncoTerms.Text
-            If txtPODescription Is Not Nothing Then m.PODescription = txtPODescription.Text
+            If txtPaymentTerms IsNot Nothing Then m.PaymentTerms = txtPaymentTerms.Text
+            If txtShipping_Address IsNot Nothing Then m.Shipping_Address = txtShipping_Address.Text
+            If txtIncoTerms IsNot Nothing Then m.IncoTerms = txtIncoTerms.Text
+            If txtPODescription IsNot Nothing Then m.PODescription = txtPODescription.Text
 
             Parsed.Master = m
 
