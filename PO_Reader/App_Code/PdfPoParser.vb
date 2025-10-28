@@ -37,7 +37,7 @@ Public Class PdfPoParser
         Dim master As New ParsedMaster()
         FillHeader(master, full)
         master.PODescription = ExtractPoDescription(full)
-        
+
         ' If PODescription is still empty, try to extract it from the full text
         If String.IsNullOrEmpty(master.PODescription) Then
             Dim descMatch = Regex.Match(full, "Purchase Order Description:\s*(.+?)(?=\s*TERMS|$)", RegexOptions.IgnoreCase)
@@ -48,18 +48,18 @@ Public Class PdfPoParser
 
         Dim details As New List(Of ParsedDetail)
         Dim stopProcessing As Boolean = False
-        
+
         For Each p In pages
             ' If we've already found the end marker, stop processing all subsequent pages
             If stopProcessing Then
                 Exit For
             End If
-            
+
             ' Check if this page contains the end marker
             If p.Text.Contains("Grand Total Amount in Words") Then
                 stopProcessing = True
             End If
-            
+
             details.AddRange(ParseItemsOnPage(p))
         Next
         details = CoalesceWrapped(details)
@@ -99,7 +99,7 @@ Public Class PdfPoParser
         If Not String.IsNullOrEmpty(sDate) Then
             h.PODate = ParseDdMmmYyyy(sDate)
         End If
-        
+
         ' If date extraction failed, try a more direct approach
         If Not h.PODate.HasValue Then
             For Each line In lines
@@ -115,7 +115,7 @@ Public Class PdfPoParser
 
         h.SupplierNumber = ExtractLabelValue(lines, "Supplier Number", 1)
         h.SupplierName = ExtractLabelValue(lines, "Supplier Name", 1)
-        
+
         ' If we didn't get supplier details, try to extract from the concatenated line
         If String.IsNullOrEmpty(h.SupplierNumber) OrElse String.IsNullOrEmpty(h.SupplierName) Then
             For Each line In lines
@@ -125,13 +125,13 @@ Public Class PdfPoParser
                     If supplierNumberMatch.Success Then
                         h.SupplierNumber = supplierNumberMatch.Groups(1).Value
                     End If
-                    
+
                     ' Extract PO Number
                     Dim poNumberMatch = Regex.Match(line, "PO\.\s*Number:\s*([A-Z0-9\-]+?)(?=Supplier|$)")
                     If poNumberMatch.Success Then
                         h.PONumber = poNumberMatch.Groups(1).Value
                     End If
-                    
+
                     ' Extract Supplier Name
                     Dim supplierNameMatch = Regex.Match(line, "Supplier Name:\s*([A-Z\s]+?)(?=\s*$|Supplier VAT|VAT#)")
                     If supplierNameMatch.Success Then
@@ -145,7 +145,7 @@ Public Class PdfPoParser
         Dim currencyText = ExtractLabelValue(lines, "Currency", 2)
         If Not String.IsNullOrEmpty(currencyText) Then
             Dim mCur = Regex.Match(currencyText, "\b([A-Z]{3})\b")
-            If mCur.Success Then 
+            If mCur.Success Then
                 h.Currency = mCur.Groups(1).Value
             Else
                 ' Try to extract from patterns like "UAE Dirham -  AED"
@@ -153,7 +153,7 @@ Public Class PdfPoParser
                 If mCur.Success Then h.Currency = mCur.Groups(1).Value
             End If
         End If
-        
+
         ' If currency extraction failed, try a more direct approach
         If String.IsNullOrEmpty(h.Currency) Then
             For Each line In lines
@@ -175,7 +175,7 @@ Public Class PdfPoParser
                 If paymentMatch.Success Then
                     h.PaymentTerms = paymentMatch.Groups(1).Value.Trim()
                 End If
-                
+
                 ' Extract IncoTerms with improved pattern to handle "None All" and similar cases
                 ' This pattern stops at common shipping address indicators or capitalized words
                 Dim incoMatch = Regex.Match(line, "Incoterms:\s*([A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*?)(?=\s+(?:Shipping|Address|All|[A-Z][a-z]{2,})\s|$)")
@@ -203,7 +203,7 @@ Public Class PdfPoParser
                 If addressMatch.Success Then
                     Dim potentialAddress = addressMatch.Groups(1).Value.Trim()
                     ' Only use it if it's not empty and looks like an address
-                    If Not String.IsNullOrEmpty(potentialAddress) AndAlso 
+                    If Not String.IsNullOrEmpty(potentialAddress) AndAlso
                        Not potentialAddress.StartsWith("Incoterms:") AndAlso
                        potentialAddress.Length > 3 Then
                         h.Shipping_Address = potentialAddress
@@ -221,7 +221,7 @@ Public Class PdfPoParser
         If Not h.SubTotal.HasValue Then
             h.SubTotal = MoneyAfterLabelLine(normalized, "Sub\.?\s*Total\s*Before\s*VAT")
         End If
-        
+
         ' Extract VAT using dedicated function
         h.VAT = ExtractVATValue(normalized, lines)
 
@@ -371,17 +371,17 @@ Public Class PdfPoParser
             "VAT\s*\d+%\s*(\d+(?:,\d{3})*(?:\.\d{2})?)",      ' VAT 5% 25000.00 (without commas)
             "VAT\s*%\s*(\d+(?:,\d{3})*(?:\.\d{2})?)"          ' VAT % 0.00 (without commas)
         }
-        
+
         ' First try the MoneyAfterLabelLine approach
         Dim vatValue = MoneyAfterLabelLine(normalized, "VAT\d+%")
         If vatValue.HasValue Then Return vatValue
-        
+
         vatValue = MoneyAfterLabelLine(normalized, "VAT\s*\d+%")
         If vatValue.HasValue Then Return vatValue
-        
+
         vatValue = MoneyAfterLabelLine(normalized, "VAT\s*%")
         If vatValue.HasValue Then Return vatValue
-        
+
         ' Try direct pattern matching on each line
         For Each line In lines
             If line.Contains("VAT") AndAlso line.Contains("%") Then
@@ -399,7 +399,7 @@ Public Class PdfPoParser
                 Next
             End If
         Next
-        
+
         ' Try looking for VAT value on the next line after "VAT %"
         For i = 0 To lines.Count - 1
             Dim line = lines(i)
@@ -414,7 +414,7 @@ Public Class PdfPoParser
                 End If
             End If
         Next
-        
+
         Return Nothing
     End Function
 
@@ -608,7 +608,7 @@ Public Class PdfPoParser
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
-            
+
             ' Check for end marker - if found, stop processing this page and return what we have so far
             If Regex.IsMatch(line, "Grand\s+Total\s+Amount\s+in\s+Words", RegexOptions.IgnoreCase) Then
                 Return list

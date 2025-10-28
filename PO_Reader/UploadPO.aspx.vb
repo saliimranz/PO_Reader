@@ -2,6 +2,7 @@ Imports System
 Imports System.IO
 Imports Newtonsoft.Json
 Imports UglyToad.PdfPig
+Imports System.Data.SqlClient
 
 Public Class UploadPO
     Inherits System.Web.UI.Page
@@ -202,8 +203,11 @@ Public Class UploadPO
                         Using cmd As New SqlCommand("SELECT POMasterID FROM dbo.IBL_PO_Master WHERE PONumber = @PONumber", con)
                             cmd.Parameters.AddWithValue("@PONumber", selectedValue)
                             Using reader = cmd.ExecuteReader()
-                                If reader.Read() AndAlso Not reader.IsDBNull("POMasterID") Then
-                                    poMasterID = reader.GetInt32("POMasterID")
+                                If reader.Read() Then
+                                    Dim ord = reader.GetOrdinal("POMasterID")
+                                    If Not reader.IsDBNull(ord) Then
+                                        poMasterID = reader.GetInt32(ord)
+                                    End If
                                 End If
                             End Using
                         End Using

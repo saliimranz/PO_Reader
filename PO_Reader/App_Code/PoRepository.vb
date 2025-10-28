@@ -144,7 +144,7 @@ Public Class PoRepository
 
     Public Function GetPOByID(poMasterID As Integer) As ParsedPo
         Dim parsedPo As New ParsedPo()
-        
+
         ' Get Master data
         Using con As New SqlConnection(_cs)
             con.Open()
@@ -152,70 +152,90 @@ Public Class PoRepository
                 cmd.Parameters.AddWithValue("@POMasterID", poMasterID)
                 Using reader = cmd.ExecuteReader()
                     If reader.Read() Then
+                        ' use ordinals
+                        Dim oPONumber = reader.GetOrdinal("PONumber")
+                        Dim oSupplierName = reader.GetOrdinal("SupplierName")
+                        Dim oSupplierNumber = reader.GetOrdinal("SupplierNumber")
+                        Dim oPODate = reader.GetOrdinal("PODate")
+                        Dim oCurrency = reader.GetOrdinal("Currency")
+                        Dim oSubTotal = reader.GetOrdinal("SubTotal")
+                        Dim oVAT = reader.GetOrdinal("VAT")
+                        Dim oTotal = reader.GetOrdinal("Total")
+                        Dim oPaymentTerms = reader.GetOrdinal("PaymentTerms")
+                        Dim oShipping = reader.GetOrdinal("Shipping_Address")
+                        Dim oInco = reader.GetOrdinal("IncoTerms")
+                        Dim oDesc = reader.GetOrdinal("PODescription")
+
                         parsedPo.Master = New ParsedMaster With {
-                            .PONumber = If(reader.IsDBNull("PONumber"), "", reader.GetString("PONumber")),
-                            .SupplierName = If(reader.IsDBNull("SupplierName"), "", reader.GetString("SupplierName")),
-                            .SupplierNumber = If(reader.IsDBNull("SupplierNumber"), "", reader.GetString("SupplierNumber")),
-                            .PODate = If(reader.IsDBNull("PODate"), Nothing, reader.GetDateTime("PODate")),
-                            .Currency = If(reader.IsDBNull("Currency"), "", reader.GetString("Currency")),
-                            .SubTotal = If(reader.IsDBNull("SubTotal"), Nothing, reader.GetDecimal("SubTotal")),
-                            .VAT = If(reader.IsDBNull("VAT"), Nothing, reader.GetDecimal("VAT")),
-                            .Total = If(reader.IsDBNull("Total"), Nothing, reader.GetDecimal("Total")),
-                            .PaymentTerms = If(reader.IsDBNull("PaymentTerms"), "", reader.GetString("PaymentTerms")),
-                            .Shipping_Address = If(reader.IsDBNull("Shipping_Address"), "", reader.GetString("Shipping_Address")),
-                            .IncoTerms = If(reader.IsDBNull("IncoTerms"), "", reader.GetString("IncoTerms")),
-                            .PODescription = If(reader.IsDBNull("PODescription"), "", reader.GetString("PODescription"))
-                        }
+                        .PONumber = If(reader.IsDBNull(oPONumber), String.Empty, reader.GetString(oPONumber)),
+                        .SupplierName = If(reader.IsDBNull(oSupplierName), String.Empty, reader.GetString(oSupplierName)),
+                        .SupplierNumber = If(reader.IsDBNull(oSupplierNumber), String.Empty, reader.GetString(oSupplierNumber)),
+                        .PODate = If(reader.IsDBNull(oPODate), Nothing, reader.GetDateTime(oPODate)),
+                        .Currency = If(reader.IsDBNull(oCurrency), String.Empty, reader.GetString(oCurrency)),
+                        .SubTotal = If(reader.IsDBNull(oSubTotal), Nothing, reader.GetDecimal(oSubTotal)),
+                        .VAT = If(reader.IsDBNull(oVAT), Nothing, reader.GetDecimal(oVAT)),
+                        .Total = If(reader.IsDBNull(oTotal), Nothing, reader.GetDecimal(oTotal)),
+                        .PaymentTerms = If(reader.IsDBNull(oPaymentTerms), String.Empty, reader.GetString(oPaymentTerms)),
+                        .Shipping_Address = If(reader.IsDBNull(oShipping), String.Empty, reader.GetString(oShipping)),
+                        .IncoTerms = If(reader.IsDBNull(oInco), String.Empty, reader.GetString(oInco)),
+                        .PODescription = If(reader.IsDBNull(oDesc), String.Empty, reader.GetString(oDesc))
+                    }
                     End If
                 End Using
             End Using
         End Using
 
-        ' Get Details data
-        parsedPo.Details = New List(Of ParsedDetail)
+        ' Now get details using POMasterID (order by PODetailID)
+        parsedPo.Details = New List(Of ParsedDetail)()
         Using con As New SqlConnection(_cs)
             con.Open()
-            Using cmd As New SqlCommand("SELECT * FROM dbo.IBL_PO_Detail WHERE POMasterID = @POMasterID ORDER BY LineNumber", con)
+            Using cmd As New SqlCommand("SELECT * FROM dbo.IBL_PO_Detail WHERE POMasterID = @POMasterID ORDER BY PODetailID", con)
                 cmd.Parameters.AddWithValue("@POMasterID", poMasterID)
                 Using reader = cmd.ExecuteReader()
+                    ' Prepare ordinals (use PODetailID for ID; DB doesn't have LineNumber)
+                    Dim ordPODetailID = If(reader.HasRows, reader.GetOrdinal("PODetailID"), -1)
+                    Dim ordItemCode = If(reader.HasRows, reader.GetOrdinal("ItemCode"), -1)
+                    Dim ordDescription = If(reader.HasRows, reader.GetOrdinal("Description"), -1)
+                    Dim ordDelivery = If(reader.HasRows, reader.GetOrdinal("DeliveryDate"), -1)
+                    Dim ordUOM = If(reader.HasRows, reader.GetOrdinal("UOM"), -1)
+                    Dim ordQty = If(reader.HasRows, reader.GetOrdinal("Qty"), -1)
+                    Dim ordUnitPrice = If(reader.HasRows, reader.GetOrdinal("UnitPrice"), -1)
+                    Dim ordNetPrice = If(reader.HasRows, reader.GetOrdinal("NetPrice"), -1)
+                    Dim ordAmount = If(reader.HasRows, reader.GetOrdinal("Amount"), -1)
+
+                    Dim lineCounter As Integer = 0
                     While reader.Read()
-                        ' Handle LineNumber conversion safely
-                        Dim lineNumber As Integer = 0
-                        If Not reader.IsDBNull("LineNumber") Then
-                            Integer.TryParse(reader("LineNumber").ToString(), lineNumber)
-                        End If
-                        
-                        ' Handle Qty conversion safely
+                        lineCounter += 1 ' assign sequential line numbers for UI
                         Dim qty As Integer? = Nothing
-                        If Not reader.IsDBNull("Qty") Then
-                            Dim qtyValue As Integer = 0
-                            If Integer.TryParse(reader("Qty").ToString(), qtyValue) Then
-                                qty = qtyValue
-                            End If
+                        If ordQty >= 0 AndAlso Not reader.IsDBNull(ordQty) Then
+                            Dim tmp As Integer = 0
+                            If Integer.TryParse(Convert.ToString(reader.GetValue(ordQty)), tmp) Then qty = tmp
                         End If
-                        
+
                         parsedPo.Details.Add(New ParsedDetail With {
-                            .LineNumber = lineNumber,
-                            .ItemCode = If(reader.IsDBNull("ItemCode"), "", reader.GetString("ItemCode")),
-                            .Description = If(reader.IsDBNull("Description"), "", reader.GetString("Description")),
-                            .DeliveryDate = If(reader.IsDBNull("DeliveryDate"), Nothing, reader.GetDateTime("DeliveryDate")),
-                            .UOM = If(reader.IsDBNull("UOM"), "", reader.GetString("UOM")),
-                            .Qty = qty,
-                            .UnitPrice = If(reader.IsDBNull("UnitPrice"), Nothing, reader.GetDecimal("UnitPrice")),
-                            .NetPrice = If(reader.IsDBNull("NetPrice"), Nothing, reader.GetDecimal("NetPrice")),
-                            .Amount = If(reader.IsDBNull("Amount"), Nothing, reader.GetDecimal("Amount"))
-                        })
+                    .LineNumber = lineCounter,
+                    .ItemCode = If(ordItemCode >= 0 AndAlso Not reader.IsDBNull(ordItemCode), reader.GetString(ordItemCode), String.Empty),
+                    .Description = If(ordDescription >= 0 AndAlso Not reader.IsDBNull(ordDescription), reader.GetString(ordDescription), String.Empty),
+                    .DeliveryDate = If(ordDelivery >= 0 AndAlso Not reader.IsDBNull(ordDelivery), reader.GetDateTime(ordDelivery), Nothing),
+                    .UOM = If(ordUOM >= 0 AndAlso Not reader.IsDBNull(ordUOM), reader.GetString(ordUOM), String.Empty),
+                    .Qty = qty,
+                    .UnitPrice = If(ordUnitPrice >= 0 AndAlso Not reader.IsDBNull(ordUnitPrice), reader.GetDecimal(ordUnitPrice), Nothing),
+                    .NetPrice = If(ordNetPrice >= 0 AndAlso Not reader.IsDBNull(ordNetPrice), reader.GetDecimal(ordNetPrice), Nothing),
+                    .Amount = If(ordAmount >= 0 AndAlso Not reader.IsDBNull(ordAmount), reader.GetDecimal(ordAmount), Nothing)
+                })
                     End While
                 End Using
             End Using
         End Using
 
+
         Return parsedPo
     End Function
 
+
     Public Function GetPOByPONumber(poNumber As String) As ParsedPo
         Dim parsedPo As New ParsedPo()
-        
+
         ' Get Master data by PO Number
         Using con As New SqlConnection(_cs)
             con.Open()
@@ -223,85 +243,102 @@ Public Class PoRepository
                 cmd.Parameters.AddWithValue("@PONumber", poNumber)
                 Using reader = cmd.ExecuteReader()
                     If reader.Read() Then
+                        Dim oPONumber = reader.GetOrdinal("PONumber")
+                        Dim oSupplierName = reader.GetOrdinal("SupplierName")
+                        Dim oSupplierNumber = reader.GetOrdinal("SupplierNumber")
+                        Dim oPODate = reader.GetOrdinal("PODate")
+                        Dim oCurrency = reader.GetOrdinal("Currency")
+                        Dim oSubTotal = reader.GetOrdinal("SubTotal")
+                        Dim oVAT = reader.GetOrdinal("VAT")
+                        Dim oTotal = reader.GetOrdinal("Total")
+                        Dim oPaymentTerms = reader.GetOrdinal("PaymentTerms")
+                        Dim oShipping = reader.GetOrdinal("Shipping_Address")
+                        Dim oInco = reader.GetOrdinal("IncoTerms")
+                        Dim oDesc = reader.GetOrdinal("PODescription")
+
                         parsedPo.Master = New ParsedMaster With {
-                            .PONumber = If(reader.IsDBNull("PONumber"), "", reader.GetString("PONumber")),
-                            .SupplierName = If(reader.IsDBNull("SupplierName"), "", reader.GetString("SupplierName")),
-                            .SupplierNumber = If(reader.IsDBNull("SupplierNumber"), "", reader.GetString("SupplierNumber")),
-                            .PODate = If(reader.IsDBNull("PODate"), Nothing, reader.GetDateTime("PODate")),
-                            .Currency = If(reader.IsDBNull("Currency"), "", reader.GetString("Currency")),
-                            .SubTotal = If(reader.IsDBNull("SubTotal"), Nothing, reader.GetDecimal("SubTotal")),
-                            .VAT = If(reader.IsDBNull("VAT"), Nothing, reader.GetDecimal("VAT")),
-                            .Total = If(reader.IsDBNull("Total"), Nothing, reader.GetDecimal("Total")),
-                            .PaymentTerms = If(reader.IsDBNull("PaymentTerms"), "", reader.GetString("PaymentTerms")),
-                            .Shipping_Address = If(reader.IsDBNull("Shipping_Address"), "", reader.GetString("Shipping_Address")),
-                            .IncoTerms = If(reader.IsDBNull("IncoTerms"), "", reader.GetString("IncoTerms")),
-                            .PODescription = If(reader.IsDBNull("PODescription"), "", reader.GetString("PODescription"))
-                        }
+                        .PONumber = If(reader.IsDBNull(oPONumber), String.Empty, reader.GetString(oPONumber)),
+                        .SupplierName = If(reader.IsDBNull(oSupplierName), String.Empty, reader.GetString(oSupplierName)),
+                        .SupplierNumber = If(reader.IsDBNull(oSupplierNumber), String.Empty, reader.GetString(oSupplierNumber)),
+                        .PODate = If(reader.IsDBNull(oPODate), Nothing, reader.GetDateTime(oPODate)),
+                        .Currency = If(reader.IsDBNull(oCurrency), String.Empty, reader.GetString(oCurrency)),
+                        .SubTotal = If(reader.IsDBNull(oSubTotal), Nothing, reader.GetDecimal(oSubTotal)),
+                        .VAT = If(reader.IsDBNull(oVAT), Nothing, reader.GetDecimal(oVAT)),
+                        .Total = If(reader.IsDBNull(oTotal), Nothing, reader.GetDecimal(oTotal)),
+                        .PaymentTerms = If(reader.IsDBNull(oPaymentTerms), String.Empty, reader.GetString(oPaymentTerms)),
+                        .Shipping_Address = If(reader.IsDBNull(oShipping), String.Empty, reader.GetString(oShipping)),
+                        .IncoTerms = If(reader.IsDBNull(oInco), String.Empty, reader.GetString(oInco)),
+                        .PODescription = If(reader.IsDBNull(oDesc), String.Empty, reader.GetString(oDesc))
+                    }
                     End If
                 End Using
             End Using
         End Using
 
-        ' Get Details data using the POMasterID from the master record
-        parsedPo.Details = New List(Of ParsedDetail)
-        If parsedPo.Master IsNot Nothing Then
-            ' First get the POMasterID for this PO Number
-            Dim poMasterID As Integer = 0
+        ' Now fetch details by finding the POMasterID first (ordinal-based)
+        parsedPo.Details = New List(Of ParsedDetail)()
+        Dim poMasterID As Integer = 0
+        Using con As New SqlConnection(_cs)
+            con.Open()
+            Using cmd As New SqlCommand("SELECT POMasterID FROM dbo.IBL_PO_Master WHERE PONumber = @PONumber", con)
+                cmd.Parameters.AddWithValue("@PONumber", poNumber)
+                Using reader = cmd.ExecuteReader()
+                    If reader.Read() Then
+                        Dim ord = reader.GetOrdinal("POMasterID")
+                        If Not reader.IsDBNull(ord) Then
+                            poMasterID = reader.GetInt32(ord)
+                        End If
+                    End If
+                End Using
+            End Using
+        End Using
+
+        ' Now get the details using the POMasterID (order by PODetailID)
+        If poMasterID > 0 Then
             Using con As New SqlConnection(_cs)
                 con.Open()
-                Using cmd As New SqlCommand("SELECT POMasterID FROM dbo.IBL_PO_Master WHERE PONumber = @PONumber", con)
-                    cmd.Parameters.AddWithValue("@PONumber", poNumber)
+                Using cmd As New SqlCommand("SELECT * FROM dbo.IBL_PO_Detail WHERE POMasterID = @POMasterID ORDER BY PODetailID", con)
+                    cmd.Parameters.AddWithValue("@POMasterID", poMasterID)
                     Using reader = cmd.ExecuteReader()
-                        If reader.Read() AndAlso Not reader.IsDBNull("POMasterID") Then
-                            poMasterID = reader.GetInt32("POMasterID")
-                        End If
+                        Dim ordPODetailID = If(reader.HasRows, reader.GetOrdinal("PODetailID"), -1)
+                        Dim ordItemCode = If(reader.HasRows, reader.GetOrdinal("ItemCode"), -1)
+                        Dim ordDescription = If(reader.HasRows, reader.GetOrdinal("Description"), -1)
+                        Dim ordDelivery = If(reader.HasRows, reader.GetOrdinal("DeliveryDate"), -1)
+                        Dim ordUOM = If(reader.HasRows, reader.GetOrdinal("UOM"), -1)
+                        Dim ordQty = If(reader.HasRows, reader.GetOrdinal("Qty"), -1)
+                        Dim ordUnitPrice = If(reader.HasRows, reader.GetOrdinal("UnitPrice"), -1)
+                        Dim ordNetPrice = If(reader.HasRows, reader.GetOrdinal("NetPrice"), -1)
+                        Dim ordAmount = If(reader.HasRows, reader.GetOrdinal("Amount"), -1)
+
+                        Dim lineCounter As Integer = 0
+                        While reader.Read()
+                            lineCounter += 1
+                            Dim qty As Integer? = Nothing
+                            If ordQty >= 0 AndAlso Not reader.IsDBNull(ordQty) Then
+                                Dim tmp As Integer = 0
+                                If Integer.TryParse(Convert.ToString(reader.GetValue(ordQty)), tmp) Then qty = tmp
+                            End If
+
+                            parsedPo.Details.Add(New ParsedDetail With {
+                        .LineNumber = lineCounter,
+                        .ItemCode = If(ordItemCode >= 0 AndAlso Not reader.IsDBNull(ordItemCode), reader.GetString(ordItemCode), String.Empty),
+                        .Description = If(ordDescription >= 0 AndAlso Not reader.IsDBNull(ordDescription), reader.GetString(ordDescription), String.Empty),
+                        .DeliveryDate = If(ordDelivery >= 0 AndAlso Not reader.IsDBNull(ordDelivery), reader.GetDateTime(ordDelivery), Nothing),
+                        .UOM = If(ordUOM >= 0 AndAlso Not reader.IsDBNull(ordUOM), reader.GetString(ordUOM), String.Empty),
+                        .Qty = qty,
+                        .UnitPrice = If(ordUnitPrice >= 0 AndAlso Not reader.IsDBNull(ordUnitPrice), reader.GetDecimal(ordUnitPrice), Nothing),
+                        .NetPrice = If(ordNetPrice >= 0 AndAlso Not reader.IsDBNull(ordNetPrice), reader.GetDecimal(ordNetPrice), Nothing),
+                        .Amount = If(ordAmount >= 0 AndAlso Not reader.IsDBNull(ordAmount), reader.GetDecimal(ordAmount), Nothing)
+                    })
+                        End While
                     End Using
                 End Using
             End Using
-
-            ' Now get the details using the POMasterID
-            If poMasterID > 0 Then
-                Using con As New SqlConnection(_cs)
-                    con.Open()
-                    Using cmd As New SqlCommand("SELECT * FROM dbo.IBL_PO_Detail WHERE POMasterID = @POMasterID ORDER BY LineNumber", con)
-                        cmd.Parameters.AddWithValue("@POMasterID", poMasterID)
-                        Using reader = cmd.ExecuteReader()
-                            While reader.Read()
-                                ' Handle LineNumber conversion safely
-                                Dim lineNumber As Integer = 0
-                                If Not reader.IsDBNull("LineNumber") Then
-                                    Integer.TryParse(reader("LineNumber").ToString(), lineNumber)
-                                End If
-                                
-                                ' Handle Qty conversion safely
-                                Dim qty As Integer? = Nothing
-                                If Not reader.IsDBNull("Qty") Then
-                                    Dim qtyValue As Integer = 0
-                                    If Integer.TryParse(reader("Qty").ToString(), qtyValue) Then
-                                        qty = qtyValue
-                                    End If
-                                End If
-                                
-                                parsedPo.Details.Add(New ParsedDetail With {
-                                    .LineNumber = lineNumber,
-                                    .ItemCode = If(reader.IsDBNull("ItemCode"), "", reader.GetString("ItemCode")),
-                                    .Description = If(reader.IsDBNull("Description"), "", reader.GetString("Description")),
-                                    .DeliveryDate = If(reader.IsDBNull("DeliveryDate"), Nothing, reader.GetDateTime("DeliveryDate")),
-                                    .UOM = If(reader.IsDBNull("UOM"), "", reader.GetString("UOM")),
-                                    .Qty = qty,
-                                    .UnitPrice = If(reader.IsDBNull("UnitPrice"), Nothing, reader.GetDecimal("UnitPrice")),
-                                    .NetPrice = If(reader.IsDBNull("NetPrice"), Nothing, reader.GetDecimal("NetPrice")),
-                                    .Amount = If(reader.IsDBNull("Amount"), Nothing, reader.GetDecimal("Amount"))
-                                })
-                            End While
-                        End Using
-                    End Using
-                End Using
-            End If
         End If
 
         Return parsedPo
     End Function
+
 
     Public Sub UpdateMaster(poMasterID As Integer, m As ParsedMaster)
         Using con As New SqlConnection(_cs)
@@ -347,14 +384,13 @@ Public Class PoRepository
                         cmd.ExecuteNonQuery()
                     End Using
 
-                    ' Insert updated details
+                    ' Insert updated details (no LineNumber column)
                     Using cmd As New SqlCommand("" &
-                        "INSERT INTO dbo.IBL_PO_Detail(" &
-                        "POMasterID, LineNumber, ItemCode, Description, DeliveryDate, UOM, Qty, UnitPrice, NetPrice, Amount)" &
-                        " VALUES (@POMasterID,@LineNumber,@ItemCode,@Description,@DeliveryDate,@UOM,@Qty,@UnitPrice,@NetPrice,@Amount);", con, tx)
+                    "INSERT INTO dbo.IBL_PO_Detail(" &
+                    "POMasterID, ItemCode, Description, DeliveryDate, UOM, Qty, UnitPrice, NetPrice, Amount)" &
+                    " VALUES (@POMasterID,@ItemCode,@Description,@DeliveryDate,@UOM,@Qty,@UnitPrice,@NetPrice,@Amount);", con, tx)
 
                         cmd.Parameters.Add("@POMasterID", SqlDbType.Int)
-                        cmd.Parameters.Add("@LineNumber", SqlDbType.Int)
                         cmd.Parameters.Add("@ItemCode", SqlDbType.NVarChar, 50)
                         cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 500)
                         cmd.Parameters.Add("@DeliveryDate", SqlDbType.Date)
@@ -366,7 +402,6 @@ Public Class PoRepository
 
                         For Each it In items
                             cmd.Parameters("@POMasterID").Value = poMasterID
-                            cmd.Parameters("@LineNumber").Value = it.LineNumber
                             cmd.Parameters("@ItemCode").Value = NullIf(it.ItemCode)
                             cmd.Parameters("@Description").Value = NullIf(If(it.Description, String.Empty).Trim())
                             cmd.Parameters("@DeliveryDate").Value = If(it.DeliveryDate.HasValue, CType(it.DeliveryDate, Object), DBNull.Value)
@@ -386,6 +421,7 @@ Public Class PoRepository
             End Using
         End Using
     End Sub
+
 
     Private Function NullIf(v As String) As Object
         If String.IsNullOrWhiteSpace(v) Then Return DBNull.Value
