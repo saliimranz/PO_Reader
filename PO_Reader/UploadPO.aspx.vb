@@ -160,16 +160,16 @@ Public Class UploadPO
 
     Private Sub UpdateStatistics(details As List(Of ParsedDetail))
         If details IsNot Nothing AndAlso details.Count > 0 Then
-            Dim totalItems = details.Count
-            Dim totalPages = Math.Ceiling(totalItems / gvDetails.PageSize)
-            Dim currentPage = gvDetails.PageIndex + 1
+            Dim totalItemsCount = details.Count
+            Dim totalPages = Math.Ceiling(totalItemsCount / gvDetails.PageSize)
+            Dim currentPageNum = gvDetails.PageIndex + 1
             Dim totalAmount = details.Sum(Function(d) If(d.Amount, 0))
 
             ' Update stats bar
             statsBar.Style("display") = "block"
-            totalItems.Text = $"Total Items: {totalItems:N0}"
-            currentPage.Text = $"Page {currentPage} of {totalPages}"
-            totalAmount.Text = $"Total Amount: {totalAmount:C2}"
+            totalItems.InnerText = $"Total Items: {totalItemsCount:N0}"
+            currentPage.InnerText = $"Page {currentPageNum} of {totalPages}"
+            totalAmount.InnerText = $"Total Amount: {totalAmount:C2}"
 
             ' Show pagination if more than one page
             If totalPages > 1 Then
