@@ -30,9 +30,19 @@ Public Class UploadPO
             ddlExistingPOs.Items.Add(New ListItem("-- Select a Purchase Order --", "0"))
             
             For Each po In poList
-                Dim displayText = $"{po.PONumber} - {po.SupplierName} ({po.PODate?.ToString("yyyy-MM-dd")}) - {po.Total:C2}"
+                ' Only show PO Number if it's not empty, otherwise show a default
+                Dim displayText As String = If(String.IsNullOrWhiteSpace(po.PONumber), 
+                    $"PO-{po.POMasterID}", 
+                    po.PONumber)
                 ddlExistingPOs.Items.Add(New ListItem(displayText, po.POMasterID.ToString()))
             Next
+            
+            ' Show success message if POs were loaded
+            If poList.Count > 0 Then
+                ShowInfo($"Loaded {poList.Count} existing Purchase Orders.")
+            Else
+                ShowInfo("No existing Purchase Orders found in database.")
+            End If
         Catch ex As Exception
             ShowError("Failed to load existing POs: " & ex.Message)
         End Try

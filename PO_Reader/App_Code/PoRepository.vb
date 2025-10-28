@@ -94,8 +94,18 @@ Public Class PoRepository
             Using cmd As New SqlCommand("SELECT POMasterID, PONumber, SupplierName, PODate, Total FROM dbo.IBL_PO_Master ORDER BY PODate DESC, PONumber", con)
                 Using reader = cmd.ExecuteReader()
                     While reader.Read()
+                        ' Handle POMasterID conversion safely
+                        Dim poMasterID As Integer = 0
+                        If Not reader.IsDBNull("POMasterID") Then
+                            Dim poMasterIDValue = reader("POMasterID")
+                            If Not Integer.TryParse(poMasterIDValue.ToString(), poMasterID) Then
+                                ' Log the actual value for debugging
+                                System.Diagnostics.Debug.WriteLine($"POMasterID conversion failed. Value: {poMasterIDValue}, Type: {poMasterIDValue.GetType()}")
+                            End If
+                        End If
+                        
                         poList.Add(New POMasterSummary With {
-                            .POMasterID = reader.GetInt32("POMasterID"),
+                            .POMasterID = poMasterID,
                             .PONumber = If(reader.IsDBNull("PONumber"), "", reader.GetString("PONumber")),
                             .SupplierName = If(reader.IsDBNull("SupplierName"), "", reader.GetString("SupplierName")),
                             .PODate = If(reader.IsDBNull("PODate"), Nothing, reader.GetDateTime("PODate")),
@@ -145,13 +155,28 @@ Public Class PoRepository
                 cmd.Parameters.AddWithValue("@POMasterID", poMasterID)
                 Using reader = cmd.ExecuteReader()
                     While reader.Read()
+                        ' Handle LineNumber conversion safely
+                        Dim lineNumber As Integer = 0
+                        If Not reader.IsDBNull("LineNumber") Then
+                            Integer.TryParse(reader("LineNumber").ToString(), lineNumber)
+                        End If
+                        
+                        ' Handle Qty conversion safely
+                        Dim qty As Integer? = Nothing
+                        If Not reader.IsDBNull("Qty") Then
+                            Dim qtyValue As Integer = 0
+                            If Integer.TryParse(reader("Qty").ToString(), qtyValue) Then
+                                qty = qtyValue
+                            End If
+                        End If
+                        
                         parsedPo.Details.Add(New ParsedDetail With {
-                            .LineNumber = If(reader.IsDBNull("LineNumber"), 0, reader.GetInt32("LineNumber")),
+                            .LineNumber = lineNumber,
                             .ItemCode = If(reader.IsDBNull("ItemCode"), "", reader.GetString("ItemCode")),
                             .Description = If(reader.IsDBNull("Description"), "", reader.GetString("Description")),
                             .DeliveryDate = If(reader.IsDBNull("DeliveryDate"), Nothing, reader.GetDateTime("DeliveryDate")),
                             .UOM = If(reader.IsDBNull("UOM"), "", reader.GetString("UOM")),
-                            .Qty = If(reader.IsDBNull("Qty"), Nothing, reader.GetInt32("Qty")),
+                            .Qty = qty,
                             .UnitPrice = If(reader.IsDBNull("UnitPrice"), Nothing, reader.GetDecimal("UnitPrice")),
                             .NetPrice = If(reader.IsDBNull("NetPrice"), Nothing, reader.GetDecimal("NetPrice")),
                             .Amount = If(reader.IsDBNull("Amount"), Nothing, reader.GetDecimal("Amount"))
