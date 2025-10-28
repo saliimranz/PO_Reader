@@ -34,7 +34,11 @@ Public Class UploadPO
                 Dim displayText As String = If(String.IsNullOrWhiteSpace(po.PONumber),
                     $"PO-{po.POMasterID}",
                     po.PONumber)
-                ddlExistingPOs.Items.Add(New ListItem(displayText, po.POMasterID.ToString()))
+                ' Use PO Number as the value, fallback to PO Master ID if PO Number is empty
+                Dim valueText As String = If(String.IsNullOrWhiteSpace(po.PONumber),
+                    po.POMasterID.ToString(),
+                    po.PONumber)
+                ddlExistingPOs.Items.Add(New ListItem(displayText, valueText))
             Next
 
             ' Show success message if POs were loaded
@@ -177,9 +181,35 @@ Public Class UploadPO
         End If
 
         Try
-            Dim poMasterID As Integer = Integer.Parse(ddlExistingPOs.SelectedValue)
+            Dim selectedValue As String = ddlExistingPOs.SelectedValue
             Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
-            Dim fetchedPO = repo.GetPOByID(poMasterID)
+            Dim fetchedPO As ParsedPo = Nothing
+            Dim poMasterID As Integer = 0
+
+            ' Check if the selected value is a PO Number (contains letters) or PO Master ID (numeric)
+            If selectedValue.All(Function(c) Char.IsDigit(c)) Then
+                ' It's a PO Master ID (numeric)
+                poMasterID = Integer.Parse(selectedValue)
+                fetchedPO = repo.GetPOByID(poMasterID)
+            Else
+                ' It's a PO Number (contains letters)
+                fetchedPO = repo.GetPOByPONumber(selectedValue)
+                ' Get the PO Master ID for the update functionality
+                If fetchedPO IsNot Nothing AndAlso fetchedPO.Master IsNot Nothing Then
+                    ' Query to get POMasterID for this PO Number
+                    Using con As New SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
+                        con.Open()
+                        Using cmd As New SqlCommand("SELECT POMasterID FROM dbo.IBL_PO_Master WHERE PONumber = @PONumber", con)
+                            cmd.Parameters.AddWithValue("@PONumber", selectedValue)
+                            Using reader = cmd.ExecuteReader()
+                                If reader.Read() AndAlso Not reader.IsDBNull("POMasterID") Then
+                                    poMasterID = reader.GetInt32("POMasterID")
+                                End If
+                            End Using
+                        End Using
+                    End Using
+                End If
+            End If
 
             If fetchedPO IsNot Nothing Then
                 Me.Parsed = fetchedPO
