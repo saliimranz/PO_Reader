@@ -486,37 +486,43 @@
         <div class="main-content">
             <div class="upload-section">
                 <!-- New PO Upload Section -->
-                <div id="uploadSection" class="section-header">
-                    <h3>Upload New Purchase Order</h3>
-                    <p>Upload a PDF file to parse and create a new purchase order</p>
-                </div>
-                <div class="upload-controls">
-                    <div class="file-upload-wrapper">
-                        <asp:FileUpload ID="fuPdf" runat="server" CssClass="file-upload" accept="application/pdf" />
+                <asp:Panel ID="pnlUploadSection" runat="server">
+                    <div class="section-header">
+                        <h3>Upload New Purchase Order</h3>
+                        <p>Upload a PDF file to parse and create a new purchase order</p>
                     </div>
-                    <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="Upload & Preview" OnClick="btnUpload_Click" />
-                    <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
-                </div>
+                    <div class="upload-controls">
+                        <div class="file-upload-wrapper">
+                            <asp:FileUpload ID="fuPdf" runat="server" CssClass="file-upload" accept="application/pdf" />
+                        </div>
+                        <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="Upload & Preview" OnClick="btnUpload_Click" />
+                        <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
+                    </div>
+                </asp:Panel>
                 
                 <!-- Divider -->
-                <div class="section-divider">
-                    <span>OR</span>
-                </div>
+                <asp:Panel ID="pnlDivider" runat="server">
+                    <div class="section-divider">
+                        <span>OR</span>
+                    </div>
+                </asp:Panel>
                 
                 <!-- Fetch Existing PO Section -->
-                <div id="fetchSection" class="section-header">
-                    <h3>Edit Existing Purchase Order</h3>
-                    <p>Select an existing PO from the database to view and edit its details</p>
-                </div>
-                <div class="fetch-controls">
-                    <div class="dropdown-wrapper">
-                        <asp:DropDownList ID="ddlExistingPOs" runat="server" CssClass="po-dropdown">
-                            <asp:ListItem Text="-- Select a Purchase Order --" Value="0" />
-                        </asp:DropDownList>
+                <asp:Panel ID="pnlFetchSection" runat="server">
+                    <div class="section-header">
+                        <h3>Edit Existing Purchase Order</h3>
+                        <p>Select an existing PO from the database to view and edit its details</p>
                     </div>
-                    <asp:Button ID="btnFetchPO" runat="server" CssClass="btn btn-primary" Text="Fetch & Edit" OnClick="btnFetchPO_Click" />
-                    <asp:Button ID="btnUpdatePO" runat="server" CssClass="btn btn-success" Text="Update Changes" OnClick="btnUpdatePO_Click" Enabled="false" />
-                </div>
+                    <div class="fetch-controls">
+                        <div class="dropdown-wrapper">
+                            <asp:DropDownList ID="ddlExistingPOs" runat="server" CssClass="po-dropdown">
+                                <asp:ListItem Text="-- Select a Purchase Order --" Value="0" />
+                            </asp:DropDownList>
+                        </div>
+                        <asp:Button ID="btnFetchPO" runat="server" CssClass="btn btn-primary" Text="Fetch & Edit" OnClick="btnFetchPO_Click" />
+                        <asp:Button ID="btnUpdatePO" runat="server" CssClass="btn btn-success" Text="Update Changes" OnClick="btnUpdatePO_Click" Enabled="false" />
+                    </div>
+                </asp:Panel>
                 
                 <div class="workflow-note">
                     <strong>Workflow:</strong> Either upload a new PDF to create a PO, or select an existing PO to edit its details.

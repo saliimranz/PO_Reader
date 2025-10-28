@@ -98,13 +98,12 @@ Public Class UploadPO
             ddlExistingPOs.SelectedIndex = 0
             
             ' Hide fetch section when uploading
-            Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
-            If sm IsNot Nothing Then
-                sm.RegisterStartupScript(Me, Me.GetType(), "HideFetchSection", "document.getElementById('fetchSection').style.display = 'none';", True)
-            End If
+            pnlFetchSection.Visible = False
+            pnlDivider.Visible = False
             
             ShowInfo("✅ Preview generated successfully. Please verify the data and click 'Save to Database' when ready.")
         Catch ex As Exception
+            ' On error, keep fetch section hidden (don't reset visibility)
             ShowError("❌ Failed to parse PDF: " & ex.Message)
         End Try
     End Sub
@@ -177,14 +176,14 @@ Public Class UploadPO
             LoadExistingPOs() ' Refresh the dropdown
             
             ' Show fetch section and reset after successful save
-            Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
-            If sm IsNot Nothing Then
-                sm.RegisterStartupScript(Me, Me.GetType(), "ShowFetchSection", "document.getElementById('fetchSection').style.display = 'block';", True)
-            End If
+            pnlUploadSection.Visible = True
+            pnlDivider.Visible = True
+            pnlFetchSection.Visible = True
             ResetUI()
             
             ShowInfo("✅ Saved successfully.")
         Catch ex As Exception
+            ' On error, keep sections hidden (don't reset visibility)
             ShowError("DB save failed: " & ex.Message)
         End Try
     End Sub
@@ -257,16 +256,15 @@ Public Class UploadPO
                 btnUpload.Enabled = False
                 
                 ' Hide upload section when fetching PO
-                Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
-                If sm IsNot Nothing Then
-                    sm.RegisterStartupScript(Me, Me.GetType(), "HideUploadSection", "document.getElementById('uploadSection').style.display = 'none';", True)
-                End If
+                pnlUploadSection.Visible = False
+                pnlDivider.Visible = False
 
                 ShowInfo("✅ PO fetched successfully. You can now edit the details and click 'Update Changes' to save.")
             Else
                 ShowError("❌ Failed to fetch PO details.")
             End If
         Catch ex As Exception
+            ' On error, keep upload section hidden (don't reset visibility)
             ShowError("❌ Failed to fetch PO: " & ex.Message)
         End Try
     End Sub
@@ -334,14 +332,14 @@ Public Class UploadPO
             LoadExistingPOs() ' Refresh the dropdown
             
             ' Show upload section and reset after successful update
-            Dim sm As ScriptManager = TryCast(Master.FindControl("ScriptManager1"), ScriptManager)
-            If sm IsNot Nothing Then
-                sm.RegisterStartupScript(Me, Me.GetType(), "ShowUploadSection", "document.getElementById('uploadSection').style.display = 'block';", True)
-            End If
+            pnlUploadSection.Visible = True
+            pnlDivider.Visible = True
+            pnlFetchSection.Visible = True
             ResetUI()
             
             ShowInfo("✅ PO updated successfully.")
         Catch ex As Exception
+            ' On error, keep sections hidden (don't reset visibility)
             ShowError("❌ Update failed: " & ex.Message)
         End Try
     End Sub
@@ -358,6 +356,11 @@ Public Class UploadPO
         ddlExistingPOs.SelectedIndex = 0
         lblInfo.Text = "" : lblInfo.Style("display") = "none"
         lblError.Text = "" : lblError.Style("display") = "none"
+        
+        ' Show all sections when resetting
+        pnlUploadSection.Visible = True
+        pnlDivider.Visible = True
+        pnlFetchSection.Visible = True
         
         ' Hide stats bar and pagination
         statsBar.Style("display") = "none"
