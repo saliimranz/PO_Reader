@@ -6,7 +6,6 @@ Imports UglyToad.PdfPig
 Public Class UploadPO
     Inherits System.Web.UI.Page
 
-
     Private Property Parsed As ParsedPo
         Get
             Return TryCast(Session("ParsedPo"), ParsedPo)
@@ -15,6 +14,29 @@ Public Class UploadPO
             Session("ParsedPo") = value
         End Set
     End Property
+
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+        If Not IsPostBack Then
+            LoadExistingPOs()
+        End If
+    End Sub
+
+    Private Sub LoadExistingPOs()
+        Try
+            Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
+            Dim poList = repo.GetAllPOs()
+            
+            ddlExistingPOs.Items.Clear()
+            ddlExistingPOs.Items.Add(New ListItem("-- Select a Purchase Order --", "0"))
+            
+            For Each po In poList
+                Dim displayText = $"{po.PONumber} - {po.SupplierName} ({po.PODate?.ToString("yyyy-MM-dd")}) - {po.Total:C2}"
+                ddlExistingPOs.Items.Add(New ListItem(displayText, po.POMasterID.ToString()))
+            Next
+        Catch ex As Exception
+            ShowError("Failed to load existing POs: " & ex.Message)
+        End Try
+    End Sub
 
     Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
         lblInfo.Text = "" : lblInfo.Style("display") = "none"
@@ -54,6 +76,9 @@ Public Class UploadPO
             hfParsedJson.Value = JsonConvert.SerializeObject(parsed)
 
             btnSave.Enabled = True
+            btnUpdatePO.Enabled = False
+            hfCurrentPOMasterID.Value = "0"
+            ddlExistingPOs.SelectedIndex = 0
             ShowInfo("✅ Preview generated successfully. Please verify the data and click 'Save to Database' when ready.")
         Catch ex As Exception
             ShowError("❌ Failed to parse PDF: " & ex.Message)
@@ -122,9 +147,125 @@ Public Class UploadPO
 
 
             btnSave.Enabled = False
+            btnUpdatePO.Enabled = False
+            hfCurrentPOMasterID.Value = "0"
+            ddlExistingPOs.SelectedIndex = 0
+            LoadExistingPOs() ' Refresh the dropdown
             ShowInfo("✅ Saved successfully.")
         Catch ex As Exception
             ShowError("DB save failed: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub btnFetchPO_Click(sender As Object, e As EventArgs)
+        lblInfo.Text = "" : lblInfo.Style("display") = "none"
+        lblError.Text = "" : lblError.Style("display") = "none"
+
+        If ddlExistingPOs.SelectedValue = "0" Then
+            ShowError("Please select a Purchase Order to fetch.")
+            Return
+        End If
+
+        Try
+            Dim poMasterID As Integer = Integer.Parse(ddlExistingPOs.SelectedValue)
+            Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
+            Dim fetchedPO = repo.GetPOByID(poMasterID)
+
+            If fetchedPO IsNot Nothing Then
+                Me.Parsed = fetchedPO
+                hfCurrentPOMasterID.Value = poMasterID.ToString()
+
+                ' Bind preview
+                dvMaster.DataSource = New ParsedMaster() {fetchedPO.Master}
+                dvMaster.DataBind()
+
+                ' Configure GridView for better pagination
+                gvDetails.PageSize = 50
+                gvDetails.DataSource = fetchedPO.Details
+                gvDetails.DataBind()
+
+                ' Update statistics
+                UpdateStatistics(fetchedPO.Details)
+
+                ' Update UI state
+                btnSave.Enabled = False
+                btnUpdatePO.Enabled = True
+                fuPdf.Enabled = False
+                btnUpload.Enabled = False
+
+                ShowInfo("✅ PO fetched successfully. You can now edit the details and click 'Update Changes' to save.")
+            Else
+                ShowError("❌ Failed to fetch PO details.")
+            End If
+        Catch ex As Exception
+            ShowError("❌ Failed to fetch PO: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub btnUpdatePO_Click(sender As Object, e As EventArgs)
+        lblInfo.Text = "" : lblInfo.Style("display") = "none"
+        lblError.Text = "" : lblError.Style("display") = "none"
+
+        If Parsed Is Nothing OrElse hfCurrentPOMasterID.Value = "0" Then
+            ShowError("Nothing to update. Please fetch a PO first.")
+            Return
+        End If
+
+        Try
+            Dim poMasterID As Integer = Integer.Parse(hfCurrentPOMasterID.Value)
+            Dim m = Parsed.Master
+            If m Is Nothing Then m = New ParsedMaster()
+
+            ' Read any edits from the master DetailsView inputs before saving
+            Dim txtPONumber = TryCast(dvMaster.FindControl("txtPONumber"), TextBox)
+            Dim txtSupplierName = TryCast(dvMaster.FindControl("txtSupplierName"), TextBox)
+            Dim txtSupplierNumber = TryCast(dvMaster.FindControl("txtSupplierNumber"), TextBox)
+            Dim txtPODate = TryCast(dvMaster.FindControl("txtPODate"), TextBox)
+            Dim txtCurrency = TryCast(dvMaster.FindControl("txtCurrency"), TextBox)
+            Dim txtSubTotal = TryCast(dvMaster.FindControl("txtSubTotal"), TextBox)
+            Dim txtVAT = TryCast(dvMaster.FindControl("txtVAT"), TextBox)
+            Dim txtTotal = TryCast(dvMaster.FindControl("txtTotal"), TextBox)
+            Dim txtPaymentTerms = TryCast(dvMaster.FindControl("txtPaymentTerms"), TextBox)
+            Dim txtShipping_Address = TryCast(dvMaster.FindControl("txtShipping_Address"), TextBox)
+            Dim txtIncoTerms = TryCast(dvMaster.FindControl("txtIncoTerms"), TextBox)
+            Dim txtPODescription = TryCast(dvMaster.FindControl("txtPODescription"), TextBox)
+
+            If txtPONumber IsNot Nothing Then m.PONumber = txtPONumber.Text
+            If txtSupplierName IsNot Nothing Then m.SupplierName = txtSupplierName.Text
+            If txtSupplierNumber IsNot Nothing Then m.SupplierNumber = txtSupplierNumber.Text
+            If txtPODate IsNot Nothing Then
+                Dim dt As DateTime
+                If DateTime.TryParse(txtPODate.Text, dt) Then m.PODate = dt
+            End If
+            If txtCurrency IsNot Nothing Then m.Currency = txtCurrency.Text
+            If txtSubTotal IsNot Nothing Then
+                Dim d As Decimal
+                If Decimal.TryParse(txtSubTotal.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.SubTotal = d
+            End If
+            If txtVAT IsNot Nothing Then
+                Dim d As Decimal
+                If Decimal.TryParse(txtVAT.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.VAT = d
+            End If
+            If txtTotal IsNot Nothing Then
+                Dim d As Decimal
+                If Decimal.TryParse(txtTotal.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.Total = d
+            End If
+            If txtPaymentTerms IsNot Nothing Then m.PaymentTerms = txtPaymentTerms.Text
+            If txtShipping_Address IsNot Nothing Then m.Shipping_Address = txtShipping_Address.Text
+            If txtIncoTerms IsNot Nothing Then m.IncoTerms = txtIncoTerms.Text
+            If txtPODescription IsNot Nothing Then m.PODescription = txtPODescription.Text
+
+            Parsed.Master = m
+
+            Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
+            repo.UpdateMaster(poMasterID, Parsed.Master)
+            repo.UpdateDetails(poMasterID, Parsed.Details)
+
+            btnUpdatePO.Enabled = False
+            LoadExistingPOs() ' Refresh the dropdown
+            ShowInfo("✅ PO updated successfully.")
+        Catch ex As Exception
+            ShowError("❌ Update failed: " & ex.Message)
         End Try
     End Sub
 
@@ -133,6 +274,11 @@ Public Class UploadPO
         dvMaster.DataSource = Nothing : dvMaster.DataBind()
         gvDetails.DataSource = Nothing : gvDetails.DataBind()
         btnSave.Enabled = False
+        btnUpdatePO.Enabled = False
+        hfCurrentPOMasterID.Value = "0"
+        fuPdf.Enabled = True
+        btnUpload.Enabled = True
+        ddlExistingPOs.SelectedIndex = 0
         lblInfo.Text = "" : lblInfo.Style("display") = "none"
         lblError.Text = "" : lblError.Style("display") = "none"
     End Sub

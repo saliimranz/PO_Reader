@@ -360,13 +360,94 @@
             color: #6c757d;
         }
         
+        .section-header {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .section-header h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .section-header p {
+            color: #6c757d;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        
+        .section-divider {
+            text-align: center;
+            margin: 2rem 0;
+            position: relative;
+        }
+        
+        .section-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #dee2e6;
+        }
+        
+        .section-divider span {
+            background: white;
+            padding: 0 1rem;
+            color: #6c757d;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .fetch-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .dropdown-wrapper {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .po-dropdown {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem;
+        }
+        
+        .po-dropdown:hover {
+            border-color: #667eea;
+        }
+        
+        .po-dropdown:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
         @media (max-width: 768px) {
-            .upload-controls {
+            .upload-controls, .fetch-controls {
                 flex-direction: column;
                 align-items: stretch;
             }
             
-            .file-upload-wrapper {
+            .file-upload-wrapper, .dropdown-wrapper {
                 min-width: auto;
             }
             
@@ -395,6 +476,11 @@
         
         <div class="main-content">
             <div class="upload-section">
+                <!-- New PO Upload Section -->
+                <div class="section-header">
+                    <h3>📄 Upload New Purchase Order</h3>
+                    <p>Upload a PDF file to parse and create a new purchase order</p>
+                </div>
                 <div class="upload-controls">
                     <div class="file-upload-wrapper">
                         <asp:FileUpload ID="fuPdf" runat="server" CssClass="file-upload" accept="application/pdf" />
@@ -403,8 +489,29 @@
                     <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
                     <asp:Button ID="btnReset" runat="server" CssClass="btn btn-warning" Text="Reset" OnClick="btnReset_Click" />
                 </div>
+                
+                <!-- Divider -->
+                <div class="section-divider">
+                    <span>OR</span>
+                </div>
+                
+                <!-- Fetch Existing PO Section -->
+                <div class="section-header">
+                    <h3>🔍 Edit Existing Purchase Order</h3>
+                    <p>Select an existing PO from the database to view and edit its details</p>
+                </div>
+                <div class="fetch-controls">
+                    <div class="dropdown-wrapper">
+                        <asp:DropDownList ID="ddlExistingPOs" runat="server" CssClass="po-dropdown" DataTextField="DisplayText" DataValueField="POMasterID">
+                            <asp:ListItem Text="-- Select a Purchase Order --" Value="0" />
+                        </asp:DropDownList>
+                    </div>
+                    <asp:Button ID="btnFetchPO" runat="server" CssClass="btn btn-primary" Text="Fetch & Edit" OnClick="btnFetchPO_Click" />
+                    <asp:Button ID="btnUpdatePO" runat="server" CssClass="btn btn-success" Text="Update Changes" OnClick="btnUpdatePO_Click" Enabled="false" />
+                </div>
+                
                 <div class="workflow-note">
-                    <strong>Workflow:</strong> Upload PDF, Preview parsed data, Click "Save to Database" if everything looks correct.
+                    <strong>Workflow:</strong> Either upload a new PDF to create a PO, or select an existing PO to edit its details.
                 </div>
                 <asp:Label ID="lblInfo" runat="server" CssClass="alert alert-success"></asp:Label>
                 <asp:Label ID="lblError" runat="server" CssClass="alert alert-error"></asp:Label>
@@ -512,6 +619,7 @@
             </div>
 
             <asp:HiddenField ID="hfParsedJson" runat="server" />
+            <asp:HiddenField ID="hfCurrentPOMasterID" runat="server" Value="0" />
         </div>
     </div>
 
