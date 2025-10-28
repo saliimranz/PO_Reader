@@ -41,6 +41,10 @@ Public Class PdfPoParser
 
         Dim details As New List(Of ParsedDetail)
         For Each p In pages
+            ' Check if this page contains "Grand Total Amount in Words" - if so, stop processing
+            If p.Text.Contains("Grand Total Amount in Words") Then
+                Exit For
+            End If
             details.AddRange(ParseItemsOnPage(p))
         Next
         details = CoalesceWrapped(details)
@@ -590,7 +594,7 @@ Public Class PdfPoParser
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
-            If Regex.IsMatch(line, "Grand\s+Total\s+Amount\s+in\s+Words|Sub\.\s*Total\s+Before\s+VAT|Total\s+Before\s+VAT|VAT\s*%\s*\d|Grand\s+Total\s+\d", RegexOptions.IgnoreCase) Then Continue For
+            If Regex.IsMatch(line, "Grand\s+Total\s+Amount\s+in\s+Words", RegexOptions.IgnoreCase) Then Continue For
 
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
