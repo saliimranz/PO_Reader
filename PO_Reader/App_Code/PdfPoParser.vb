@@ -586,11 +586,37 @@ Public Class PdfPoParser
         Dim cuts = New List(Of Double) From {0, 40, 110, 190, 240, 290, 330, 360, 400, 450, 500}
 
         Dim list As New List(Of ParsedDetail)
+        Dim grandTotalEncountered As Boolean = False
+        
         For Each r In rows
             r.Sort(Function(a, b) a.BoundingBox.Left.CompareTo(b.BoundingBox.Left))
             Dim line = String.Join(" ", r.Select(Function(w) w.Text))
+            
+            ' Check if this line contains Grand Total - if so, stop processing further rows
+            If Regex.IsMatch(line, "Grand\s*Total", RegexOptions.IgnoreCase) Then
+                grandTotalEncountered = True
+                Continue For
+            End If
+            
+            ' Also check for other indicators that we've reached the end of line items
+            If Regex.IsMatch(line, "TERMS\s+AND\s+CONDITIONS|ThisDocument\s+is\s+System-generated|Processed\s+By:|Approved\s+By:", RegexOptions.IgnoreCase) Then
+                grandTotalEncountered = True
+                Continue For
+            End If
+            
+            ' Check for Arabic text patterns that might appear after Grand Total
+            If Regex.IsMatch(line, "[\u0600-\u06FF]+.*\d+.*thousand.*hundred", RegexOptions.IgnoreCase) Then
+                grandTotalEncountered = True
+                Continue For
+            End If
+            
+            ' If we've already encountered Grand Total, stop processing all subsequent rows
+            If grandTotalEncountered Then
+                Continue For
+            End If
+            
             If Regex.IsMatch(line, "\b(Line|Code|Description|Delivery|UOM|Qty|Unit|Discount|Net|Amount)\b", RegexOptions.IgnoreCase) Then Continue For
-            If Regex.IsMatch(line, "Grand\s*Total|TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
+            If Regex.IsMatch(line, "TERMS\s+AND\s+CONDITIONS|Page\s+\d+\s+of\s+\d+", RegexOptions.IgnoreCase) Then Continue For
 
             Dim it As New ParsedDetail
             it.ItemCode = Slice(r, cuts, 1)
