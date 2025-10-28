@@ -502,7 +502,7 @@
                 </div>
                 <div class="fetch-controls">
                     <div class="dropdown-wrapper">
-                        <asp:DropDownList ID="ddlExistingPOs" runat="server" CssClass="po-dropdown" DataTextField="DisplayText" DataValueField="POMasterID">
+                        <asp:DropDownList ID="ddlExistingPOs" runat="server" CssClass="po-dropdown">
                             <asp:ListItem Text="-- Select a Purchase Order --" Value="0" />
                         </asp:DropDownList>
                     </div>
