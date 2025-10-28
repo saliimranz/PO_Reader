@@ -28,7 +28,7 @@ Public Class UploadPO
             Dim poList = repo.GetAllPOs()
 
             ddlExistingPOs.Items.Clear()
-            ddlExistingPOs.Items.Add(New ListItem("-- Select a Purchase Order --", "0"))
+            ddlExistingPOs.Items.Add(New ListItem(" Select a Purchase Order ", "0"))
 
             For Each po In poList
                 ' Only show PO Number if it's not empty, otherwise show a default
