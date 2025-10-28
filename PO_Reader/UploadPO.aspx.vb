@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.IO
 Imports Newtonsoft.Json
 Imports UglyToad.PdfPig
@@ -31,15 +31,10 @@ Public Class UploadPO
         End If
 
 
-        Dim tempPath = Server.MapPath("~/App_Data/uploads/")
-        If Not Directory.Exists(tempPath) Then Directory.CreateDirectory(tempPath)
-        Dim savePath = Path.Combine(tempPath, Guid.NewGuid().ToString() & ".pdf")
-        fuPdf.SaveAs(savePath)
-
-
         Try
             Dim parser As New PdfPoParser()
-            Dim parsed = parser.Parse(savePath)
+            ' Parse directly from the uploaded file stream (no disk write)
+            Dim parsed = parser.Parse(fuPdf.FileContent)
             If parsed.Details IsNot Nothing Then
                 parsed.Details.Sort(Function(a, b) a.LineNumber.CompareTo(b.LineNumber))
             End If
@@ -78,6 +73,50 @@ Public Class UploadPO
 
 
         Try
+            ' Read any edits from the master DetailsView inputs before saving
+            Dim m = Parsed.Master
+            If m Is Nothing Then m = New ParsedMaster()
+
+            Dim txtPONumber = TryCast(dvMaster.FindControl("txtPONumber"), TextBox)
+            Dim txtSupplierName = TryCast(dvMaster.FindControl("txtSupplierName"), TextBox)
+            Dim txtSupplierNumber = TryCast(dvMaster.FindControl("txtSupplierNumber"), TextBox)
+            Dim txtPODate = TryCast(dvMaster.FindControl("txtPODate"), TextBox)
+            Dim txtCurrency = TryCast(dvMaster.FindControl("txtCurrency"), TextBox)
+            Dim txtSubTotal = TryCast(dvMaster.FindControl("txtSubTotal"), TextBox)
+            Dim txtVAT = TryCast(dvMaster.FindControl("txtVAT"), TextBox)
+            Dim txtTotal = TryCast(dvMaster.FindControl("txtTotal"), TextBox)
+            Dim txtPaymentTerms = TryCast(dvMaster.FindControl("txtPaymentTerms"), TextBox)
+            Dim txtShipping_Address = TryCast(dvMaster.FindControl("txtShipping_Address"), TextBox)
+            Dim txtIncoTerms = TryCast(dvMaster.FindControl("txtIncoTerms"), TextBox)
+            Dim txtPODescription = TryCast(dvMaster.FindControl("txtPODescription"), TextBox)
+
+            If txtPONumber IsNot Nothing Then m.PONumber = txtPONumber.Text
+            If txtSupplierName IsNot Nothing Then m.SupplierName = txtSupplierName.Text
+            If txtSupplierNumber IsNot Nothing Then m.SupplierNumber = txtSupplierNumber.Text
+            If txtPODate IsNot Nothing Then
+                Dim dt As DateTime
+                If DateTime.TryParse(txtPODate.Text, dt) Then m.PODate = dt
+            End If
+            If txtCurrency IsNot Nothing Then m.Currency = txtCurrency.Text
+            If txtSubTotal IsNot Nothing Then
+                Dim d As Decimal
+                If Decimal.TryParse(txtSubTotal.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.SubTotal = d
+            End If
+            If txtVAT IsNot Nothing Then
+                Dim d As Decimal
+                If Decimal.TryParse(txtVAT.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.VAT = d
+            End If
+            If txtTotal IsNot Nothing Then
+                Dim d As Decimal
+                If Decimal.TryParse(txtTotal.Text.Replace(",", ""), Globalization.NumberStyles.Any, Globalization.CultureInfo.InvariantCulture, d) Then m.Total = d
+            End If
+            If txtPaymentTerms IsNot Nothing Then m.PaymentTerms = txtPaymentTerms.Text
+            If txtShipping_Address IsNot Nothing Then m.Shipping_Address = txtShipping_Address.Text
+            If txtIncoTerms IsNot Nothing Then m.IncoTerms = txtIncoTerms.Text
+            If txtPODescription IsNot Nothing Then m.PODescription = txtPODescription.Text
+
+            Parsed.Master = m
+
             Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
             Dim masterId = repo.InsertMaster(Parsed.Master)
             repo.InsertDetails(masterId, Parsed.Details)
