@@ -88,35 +88,59 @@ Public Class PoRepository
     End Sub
 
     Public Function GetAllPOs() As List(Of POMasterSummary)
-        Dim poList As New List(Of POMasterSummary)
+        Dim poList As New List(Of POMasterSummary)()
+
         Using con As New SqlConnection(_cs)
             con.Open()
             Using cmd As New SqlCommand("SELECT POMasterID, PONumber, SupplierName, PODate, Total FROM dbo.IBL_PO_Master ORDER BY PODate DESC, PONumber", con)
                 Using reader = cmd.ExecuteReader()
+                    ' get ordinals once (faster & avoids mistakes)
+                    Dim ordPOMasterID = reader.GetOrdinal("POMasterID")
+                    Dim ordPONumber = reader.GetOrdinal("PONumber")
+                    Dim ordSupplierName = reader.GetOrdinal("SupplierName")
+                    Dim ordPODate = reader.GetOrdinal("PODate")
+                    Dim ordTotal = reader.GetOrdinal("Total")
+
                     While reader.Read()
-                        ' Handle POMasterID conversion safely
+                        ' POMasterID
                         Dim poMasterID As Integer = 0
-                        If Not reader.IsDBNull("POMasterID") Then
-                            Dim poMasterIDValue = reader("POMasterID")
-                            If Not Integer.TryParse(poMasterIDValue.ToString(), poMasterID) Then
-                                ' Log the actual value for debugging
-                                System.Diagnostics.Debug.WriteLine($"POMasterID conversion failed. Value: {poMasterIDValue}, Type: {poMasterIDValue.GetType()}")
-                            End If
+                        If Not reader.IsDBNull(ordPOMasterID) Then
+                            ' use TryCast pattern or Convert.ToInt32 to be robust
+                            Dim val = reader.GetValue(ordPOMasterID)
+                            Integer.TryParse(Convert.ToString(val), poMasterID)
                         End If
-                        
+
+                        ' PONumber & SupplierName
+                        Dim poNumber As String = If(reader.IsDBNull(ordPONumber), String.Empty, reader.GetString(ordPONumber))
+                        Dim supplierName As String = If(reader.IsDBNull(ordSupplierName), String.Empty, reader.GetString(ordSupplierName))
+
+                        ' PODate (nullable)
+                        Dim poDate As DateTime? = Nothing
+                        If Not reader.IsDBNull(ordPODate) Then
+                            poDate = reader.GetDateTime(ordPODate)
+                        End If
+
+                        ' Total (decimal)
+                        Dim total As Decimal = 0D
+                        If Not reader.IsDBNull(ordTotal) Then
+                            total = reader.GetDecimal(ordTotal)
+                        End If
+
                         poList.Add(New POMasterSummary With {
-                            .POMasterID = poMasterID,
-                            .PONumber = If(reader.IsDBNull("PONumber"), "", reader.GetString("PONumber")),
-                            .SupplierName = If(reader.IsDBNull("SupplierName"), "", reader.GetString("SupplierName")),
-                            .PODate = If(reader.IsDBNull("PODate"), Nothing, reader.GetDateTime("PODate")),
-                            .Total = If(reader.IsDBNull("Total"), 0, reader.GetDecimal("Total"))
-                        })
+                        .POMasterID = poMasterID,
+                        .PONumber = poNumber,
+                        .SupplierName = supplierName,
+                        .PODate = poDate,
+                        .Total = total
+                    })
                     End While
                 End Using
             End Using
         End Using
+
         Return poList
     End Function
+
 
     Public Function GetPOByID(poMasterID As Integer) As ParsedPo
         Dim parsedPo As New ParsedPo()

@@ -25,18 +25,18 @@ Public Class UploadPO
         Try
             Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
             Dim poList = repo.GetAllPOs()
-            
+
             ddlExistingPOs.Items.Clear()
             ddlExistingPOs.Items.Add(New ListItem("-- Select a Purchase Order --", "0"))
-            
+
             For Each po In poList
                 ' Only show PO Number if it's not empty, otherwise show a default
-                Dim displayText As String = If(String.IsNullOrWhiteSpace(po.PONumber), 
-                    $"PO-{po.POMasterID}", 
+                Dim displayText As String = If(String.IsNullOrWhiteSpace(po.PONumber),
+                    $"PO-{po.POMasterID}",
                     po.PONumber)
                 ddlExistingPOs.Items.Add(New ListItem(displayText, po.POMasterID.ToString()))
             Next
-            
+
             ' Show success message if POs were loaded
             If poList.Count > 0 Then
                 ShowInfo($"Loaded {poList.Count} existing Purchase Orders.")
