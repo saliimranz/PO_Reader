@@ -478,7 +478,7 @@
             <div class="upload-section">
                 <!-- New PO Upload Section -->
                 <div class="section-header">
-                    <h3>📄 Upload New Purchase Order</h3>
+                    <h3>Upload New Purchase Order</h3>
                     <p>Upload a PDF file to parse and create a new purchase order</p>
                 </div>
                 <div class="upload-controls">
@@ -497,7 +497,7 @@
                 
                 <!-- Fetch Existing PO Section -->
                 <div class="section-header">
-                    <h3>🔍 Edit Existing Purchase Order</h3>
+                    <h3>Edit Existing Purchase Order</h3>
                     <p>Select an existing PO from the database to view and edit its details</p>
                 </div>
                 <div class="fetch-controls">

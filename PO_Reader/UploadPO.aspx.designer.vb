@@ -50,6 +50,33 @@ Partial Public Class UploadPO
     Protected WithEvents btnReset As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
+    '''ddlExistingPOs control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents ddlExistingPOs As Global.System.Web.UI.WebControls.DropDownList
+
+    '''<summary>
+    '''btnFetchPO control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents btnFetchPO As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnUpdatePO control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents btnUpdatePO As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''lblInfo control.
     '''</summary>
     '''<remarks>
@@ -147,33 +174,6 @@ Partial Public Class UploadPO
     '''To modify move field declaration from designer file to code-behind file.
     '''</remarks>
     Protected WithEvents hfParsedJson As Global.System.Web.UI.WebControls.HiddenField
-
-    '''<summary>
-    '''ddlExistingPOs control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents ddlExistingPOs As Global.System.Web.UI.WebControls.DropDownList
-
-    '''<summary>
-    '''btnFetchPO control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnFetchPO As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''btnUpdatePO control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnUpdatePO As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''hfCurrentPOMasterID control.
