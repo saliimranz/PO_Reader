@@ -1,6 +1,7 @@
 <%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" MasterPageFile="~/Site.Master" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
+    <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
     <style>
         .po-container {
             background: #f8f9fa;
@@ -402,6 +403,15 @@
             font-size: 0.9rem;
         }
         
+        .hidden-section {
+            display: none !important;
+        }
+        
+        .disabled-section {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
         .fetch-controls {
             display: flex;
             gap: 1rem;
@@ -477,7 +487,7 @@
         <div class="main-content">
             <div class="upload-section">
                 <!-- New PO Upload Section -->
-                <div class="section-header">
+                <div id="uploadSection" class="section-header">
                     <h3>Upload New Purchase Order</h3>
                     <p>Upload a PDF file to parse and create a new purchase order</p>
                 </div>
@@ -487,7 +497,6 @@
                     </div>
                     <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="Upload & Preview" OnClick="btnUpload_Click" />
                     <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
-                    <asp:Button ID="btnReset" runat="server" CssClass="btn btn-warning" Text="Reset" OnClick="btnReset_Click" />
                 </div>
                 
                 <!-- Divider -->
@@ -496,7 +505,7 @@
                 </div>
                 
                 <!-- Fetch Existing PO Section -->
-                <div class="section-header">
+                <div id="fetchSection" class="section-header">
                     <h3>Edit Existing Purchase Order</h3>
                     <p>Select an existing PO from the database to view and edit its details</p>
                 </div>

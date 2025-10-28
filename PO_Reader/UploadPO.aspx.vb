@@ -96,6 +96,10 @@ Public Class UploadPO
             btnUpdatePO.Enabled = False
             hfCurrentPOMasterID.Value = "0"
             ddlExistingPOs.SelectedIndex = 0
+            
+            ' Hide fetch section when uploading
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "HideFetchSection", "document.getElementById('fetchSection').style.display = 'none';", True)
+            
             ShowInfo("✅ Preview generated successfully. Please verify the data and click 'Save to Database' when ready.")
         Catch ex As Exception
             ShowError("❌ Failed to parse PDF: " & ex.Message)
@@ -168,6 +172,11 @@ Public Class UploadPO
             hfCurrentPOMasterID.Value = "0"
             ddlExistingPOs.SelectedIndex = 0
             LoadExistingPOs() ' Refresh the dropdown
+            
+            ' Show fetch section and reset after successful save
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowFetchSection", "document.getElementById('fetchSection').style.display = 'block';", True)
+            ResetUI()
+            
             ShowInfo("✅ Saved successfully.")
         Catch ex As Exception
             ShowError("DB save failed: " & ex.Message)
@@ -240,6 +249,9 @@ Public Class UploadPO
                 btnUpdatePO.Enabled = True
                 fuPdf.Enabled = False
                 btnUpload.Enabled = False
+                
+                ' Hide upload section when fetching PO
+                ScriptManager.RegisterStartupScript(Me, Me.GetType(), "HideUploadSection", "document.getElementById('uploadSection').style.display = 'none';", True)
 
                 ShowInfo("✅ PO fetched successfully. You can now edit the details and click 'Update Changes' to save.")
             Else
@@ -311,13 +323,18 @@ Public Class UploadPO
 
             btnUpdatePO.Enabled = False
             LoadExistingPOs() ' Refresh the dropdown
+            
+            ' Show upload section and reset after successful update
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowUploadSection", "document.getElementById('uploadSection').style.display = 'block';", True)
+            ResetUI()
+            
             ShowInfo("✅ PO updated successfully.")
         Catch ex As Exception
             ShowError("❌ Update failed: " & ex.Message)
         End Try
     End Sub
 
-    Protected Sub btnReset_Click(sender As Object, e As EventArgs)
+    Private Sub ResetUI()
         Session.Remove("ParsedPo")
         dvMaster.DataSource = Nothing : dvMaster.DataBind()
         gvDetails.DataSource = Nothing : gvDetails.DataBind()
@@ -329,7 +346,12 @@ Public Class UploadPO
         ddlExistingPOs.SelectedIndex = 0
         lblInfo.Text = "" : lblInfo.Style("display") = "none"
         lblError.Text = "" : lblError.Style("display") = "none"
+        
+        ' Hide stats bar and pagination
+        statsBar.Style("display") = "none"
+        paginationContainer.Style("display") = "none"
     End Sub
+
 
 
     Private Sub ShowInfo(msg As String)
