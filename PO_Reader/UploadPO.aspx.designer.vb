@@ -14,15 +14,6 @@ Option Explicit On
 Partial Public Class UploadPO
 
     '''<summary>
-    '''form1 control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
-
-    '''<summary>
     '''fuPdf control.
     '''</summary>
     '''<remarks>
@@ -86,24 +77,6 @@ Partial Public Class UploadPO
     Protected WithEvents dvMaster As Global.System.Web.UI.WebControls.DetailsView
 
     '''<summary>
-    '''gvDetails control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents gvDetails As Global.System.Web.UI.WebControls.GridView
-
-    '''<summary>
-    '''hfParsedJson control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents hfParsedJson As Global.System.Web.UI.WebControls.HiddenField
-
-    '''<summary>
     '''statsBar control.
     '''</summary>
     '''<remarks>
@@ -140,6 +113,15 @@ Partial Public Class UploadPO
     Protected WithEvents totalAmount As Global.System.Web.UI.HtmlControls.HtmlGenericControl
 
     '''<summary>
+    '''gvDetails control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents gvDetails As Global.System.Web.UI.WebControls.GridView
+
+    '''<summary>
     '''paginationContainer control.
     '''</summary>
     '''<remarks>
@@ -156,4 +138,13 @@ Partial Public Class UploadPO
     '''To modify move field declaration from designer file to code-behind file.
     '''</remarks>
     Protected WithEvents paginationControls As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+    '''<summary>
+    '''hfParsedJson control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents hfParsedJson As Global.System.Web.UI.WebControls.HiddenField
 End Class

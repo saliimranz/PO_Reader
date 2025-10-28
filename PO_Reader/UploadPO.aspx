@@ -156,7 +156,7 @@
         }
         
         .section-title::before {
-            content: "📋";
+            content: "";
             font-size: 1.2rem;
         }
         
@@ -230,7 +230,7 @@
         }
         
         .line-items-title::before {
-            content: "📦";
+            content: "";
             font-size: 1.2rem;
         }
         
@@ -399,12 +399,12 @@
                     <div class="file-upload-wrapper">
                         <asp:FileUpload ID="fuPdf" runat="server" CssClass="file-upload" accept="application/pdf" />
                     </div>
-                    <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="📤 Upload & Preview" OnClick="btnUpload_Click" />
-                    <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="💾 Save to Database" OnClick="btnSave_Click" Enabled="false" />
-                    <asp:Button ID="btnReset" runat="server" CssClass="btn btn-warning" Text="🔄 Reset" OnClick="btnReset_Click" />
+                    <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="Upload & Preview" OnClick="btnUpload_Click" />
+                    <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
+                    <asp:Button ID="btnReset" runat="server" CssClass="btn btn-warning" Text="Reset" OnClick="btnReset_Click" />
                 </div>
                 <div class="workflow-note">
-                    <strong>Workflow:</strong> Upload PDF → Preview parsed data → Click "Save to Database" if everything looks correct.
+                    <strong>Workflow:</strong> Upload PDF, Preview parsed data, Click "Save to Database" if everything looks correct.
                 </div>
                 <asp:Label ID="lblInfo" runat="server" CssClass="alert alert-success"></asp:Label>
                 <asp:Label ID="lblError" runat="server" CssClass="alert alert-error"></asp:Label>
