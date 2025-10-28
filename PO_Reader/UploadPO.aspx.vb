@@ -39,8 +39,6 @@ Public Class UploadPO
                     po.POMasterID.ToString(),
                     po.PONumber)
                 
-                ' Debug: Log what we're adding to the dropdown
-                System.Diagnostics.Debug.WriteLine($"Adding to dropdown - Display: '{displayText}', Value: '{valueText}'")
                 
                 ddlExistingPOs.Items.Add(New ListItem(displayText, valueText))
             Next
@@ -187,9 +185,6 @@ Public Class UploadPO
         Try
             Dim selectedValue As String = ddlExistingPOs.SelectedValue
             
-            ' Debug: Log the selected value
-            System.Diagnostics.Debug.WriteLine($"Selected value: '{selectedValue}'")
-            ShowInfo($"Debug: Selected value is '{selectedValue}'")
             
             Dim repo As New PoRepository(System.Configuration.ConfigurationManager.ConnectionStrings("DBCS").ConnectionString)
             Dim fetchedPO As ParsedPo = Nothing
