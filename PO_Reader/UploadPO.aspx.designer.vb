@@ -41,15 +41,6 @@ Partial Public Class UploadPO
     Protected WithEvents btnSave As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''btnReset control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnReset As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
     '''ddlExistingPOs control.
     '''</summary>
     '''<remarks>
@@ -183,4 +174,31 @@ Partial Public Class UploadPO
     '''To modify move field declaration from designer file to code-behind file.
     '''</remarks>
     Protected WithEvents hfCurrentPOMasterID As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''pnlUploadSection control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents pnlUploadSection As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''pnlDivider control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents pnlDivider As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''pnlFetchSection control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents pnlFetchSection As Global.System.Web.UI.WebControls.Panel
 End Class
