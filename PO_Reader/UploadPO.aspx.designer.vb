@@ -14,6 +14,42 @@ Option Explicit On
 Partial Public Class UploadPO
 
     '''<summary>
+    '''btnRefresh control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents btnRefresh As Global.System.Web.UI.WebControls.LinkButton
+
+    '''<summary>
+    '''lblInfo control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents lblInfo As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''lblError control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents lblError As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''pnlUploadSection control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents pnlUploadSection As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
     '''fuPdf control.
     '''</summary>
     '''<remarks>
@@ -41,6 +77,24 @@ Partial Public Class UploadPO
     Protected WithEvents btnSave As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
+    '''pnlDivider control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents pnlDivider As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''pnlFetchSection control.
+    '''</summary>
+    '''<remarks>
+    '''Auto-generated field.
+    '''To modify move field declaration from designer file to code-behind file.
+    '''</remarks>
+    Protected WithEvents pnlFetchSection As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
     '''ddlExistingPOs control.
     '''</summary>
     '''<remarks>
@@ -66,24 +120,6 @@ Partial Public Class UploadPO
     '''To modify move field declaration from designer file to code-behind file.
     '''</remarks>
     Protected WithEvents btnUpdatePO As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''lblInfo control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblInfo As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''lblError control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblError As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
     '''dvMaster control.
@@ -174,40 +210,4 @@ Partial Public Class UploadPO
     '''To modify move field declaration from designer file to code-behind file.
     '''</remarks>
     Protected WithEvents hfCurrentPOMasterID As Global.System.Web.UI.WebControls.HiddenField
-
-    '''<summary>
-    '''pnlUploadSection control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents pnlUploadSection As Global.System.Web.UI.WebControls.Panel
-
-    '''<summary>
-    '''pnlDivider control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents pnlDivider As Global.System.Web.UI.WebControls.Panel
-
-    '''<summary>
-    '''pnlFetchSection control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents pnlFetchSection As Global.System.Web.UI.WebControls.Panel
-
-    '''<summary>
-    '''btnRefresh control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnRefresh As Global.System.Web.UI.WebControls.Button
 End Class

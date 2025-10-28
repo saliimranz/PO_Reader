@@ -1,4 +1,4 @@
-<%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" MasterPageFile="~/Site.Master" %>
+<%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" MasterPageFile="~/Site.Master" ResponseEncoding="utf-8"%>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
     <style>
@@ -48,33 +48,75 @@
             align-items: center;
             gap: 1rem;
         }
-        
+
+        /* Styles (put in your page CSS or site stylesheet) */
         .btn-refresh {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
+          /* reset link default styles */
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          border: none;
+          background: rgba(255,255,255,0.12);
+          border: 2px solid rgba(255,255,255,0.18);
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: transform .28s cubic-bezier(.2,.9,.3,1), box-shadow .28s, background .18s, border-color .18s;
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+          color: #fff;              /* important: SVG uses currentColor */
+          padding: 0;
+          margin: 0;
+          line-height: 0;           /* prevent text baseline spacing */
+          vertical-align: middle;
+          outline: none;
         }
-        
+
+        /* Remove focus ring default, provide accessible focus */
+        .btn-refresh:focus {
+          outline: none;
+          box-shadow: 0 0 0 4px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.22);
+        }
+
+        /* SVG sizing + smooth icon transform */
+        .btn-refresh svg {
+          display: block;           /* remove inline-gap issues */
+          width: 20px;
+          height: 20px;
+          transition: transform .32s cubic-bezier(.2,.9,.3,1);
+          transform-origin: 50% 50%;
+        }
+
+        /* Hover: subtle rotate of the icon only; preserve circle shape */
         .btn-refresh:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: rotate(180deg) scale(1.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+          background: rgba(255,255,255,0.18);
+          border-color: rgba(255,255,255,0.28);
+          transform: translateY(-2px);   /* gentle lift */
+          box-shadow: 0 12px 28px rgba(0,0,0,0.28);
         }
-        
+
+        .btn-refresh:hover svg {
+          transform: rotate(180deg) scale(1.05);
+        }
+
+        /* Active: press effect */
         .btn-refresh:active {
-            transform: rotate(180deg) scale(0.95);
+          transform: translateY(0);
         }
+
+        .btn-refresh:active svg {
+          transform: rotate(180deg) scale(0.95);
+        }
+
+        /* small-screen tweak */
+        @media (max-width: 420px) {
+          .btn-refresh { width:44px; height:44px; }
+          .btn-refresh svg { width:18px; height:18px; }
+        }
+
         
         .main-content {
             max-width: 1400px;
@@ -547,13 +589,27 @@
                     <div class="subtitle">Upload, Preview & Process Purchase Orders</div>
                 </div>
                 <div class="header-actions">
-                    <asp:Button ID="btnRefresh" runat="server" CssClass="btn-refresh" OnClick="btnRefresh_Click" 
-                        ToolTip="Refresh/Reset All" Text="🔄" />
+                    <asp:LinkButton ID="btnRefresh" runat="server"
+                        CssClass="btn-refresh"
+                        OnClick="btnRefresh_Click"
+                        ToolTip="Refresh/Reset All"
+                        aria-label="Refresh">
+                        <!-- SVG icon (kept simple & crisp) -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                  d="M4 4v6h6M20 20v-6h-6M5 19A9 9 0 0 1 4 12a9 9 0 0 1 16-4M19 5A9 9 0 0 1 20 12a9 9 0 0 1-16 4" />
+                        </svg>
+                    </asp:LinkButton>
+
                 </div>
             </div>
         </div>
         
         <div class="main-content">
+
+            <asp:Label ID="lblInfo" runat="server" CssClass="alert alert-success"></asp:Label>
+            <asp:Label ID="lblError" runat="server" CssClass="alert alert-error"></asp:Label>
+
             <div class="upload-section">
                 <!-- New PO Upload Section -->
                 <asp:Panel ID="pnlUploadSection" runat="server">
@@ -594,11 +650,8 @@
                     </div>
                 </asp:Panel>
                 
-                <div class="workflow-note">
-                    <strong>Workflow:</strong> Either upload a new PDF to create a PO, or select an existing PO to edit its details.
-                </div>
-                <asp:Label ID="lblInfo" runat="server" CssClass="alert alert-success"></asp:Label>
-                <asp:Label ID="lblError" runat="server" CssClass="alert alert-error"></asp:Label>
+                    
+                
             </div>
 
 

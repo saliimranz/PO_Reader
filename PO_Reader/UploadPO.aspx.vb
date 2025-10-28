@@ -45,9 +45,7 @@ Public Class UploadPO
             Next
 
             ' Show success message if POs were loaded
-            If poList.Count > 0 Then
-                ShowInfo($"Loaded {poList.Count} existing Purchase Orders.")
-            Else
+            If poList.Count <= 0 Then
                 ShowInfo("No existing Purchase Orders found in database.")
             End If
         Catch ex As Exception
@@ -96,11 +94,11 @@ Public Class UploadPO
             btnUpdatePO.Enabled = False
             hfCurrentPOMasterID.Value = "0"
             ddlExistingPOs.SelectedIndex = 0
-            
+
             ' Hide fetch section when uploading
             pnlFetchSection.Visible = False
             pnlDivider.Visible = False
-            
+
             ShowInfo("✅ Preview generated successfully. Please verify the data and click 'Save to Database' when ready.")
         Catch ex As Exception
             ' On error, keep fetch section hidden (don't reset visibility)
@@ -174,13 +172,13 @@ Public Class UploadPO
             hfCurrentPOMasterID.Value = "0"
             ddlExistingPOs.SelectedIndex = 0
             LoadExistingPOs() ' Refresh the dropdown
-            
+
             ' Show fetch section and reset after successful save
             pnlUploadSection.Visible = True
             pnlDivider.Visible = True
             pnlFetchSection.Visible = True
             ResetUI()
-            
+
             ShowInfo("✅ Saved successfully.")
         Catch ex As Exception
             ' On error, keep sections hidden (don't reset visibility)
@@ -254,7 +252,7 @@ Public Class UploadPO
                 btnUpdatePO.Enabled = True
                 fuPdf.Enabled = False
                 btnUpload.Enabled = False
-                
+
                 ' Hide upload section when fetching PO
                 pnlUploadSection.Visible = False
                 pnlDivider.Visible = False
@@ -330,13 +328,13 @@ Public Class UploadPO
 
             btnUpdatePO.Enabled = False
             LoadExistingPOs() ' Refresh the dropdown
-            
+
             ' Show upload section and reset after successful update
             pnlUploadSection.Visible = True
             pnlDivider.Visible = True
             pnlFetchSection.Visible = True
             ResetUI()
-            
+
             ShowInfo("✅ PO updated successfully.")
         Catch ex As Exception
             ' On error, keep sections hidden (don't reset visibility)
@@ -356,12 +354,12 @@ Public Class UploadPO
         ddlExistingPOs.SelectedIndex = 0
         lblInfo.Text = "" : lblInfo.Style("display") = "none"
         lblError.Text = "" : lblError.Style("display") = "none"
-        
+
         ' Show all sections when resetting
         pnlUploadSection.Visible = True
         pnlDivider.Visible = True
         pnlFetchSection.Visible = True
-        
+
         ' Hide stats bar and pagination
         statsBar.Style("display") = "none"
         paginationContainer.Style("display") = "none"
