@@ -1,4 +1,4 @@
-<%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" MasterPageFile="~/Site.Master" %>
+<%@ Page Language="vb" AutoEventWireup="true" CodeBehind="UploadPO.aspx.vb" Inherits="PO_Reader.UploadPO" MasterPageFile="~/Site.Master" ResponseEncoding="utf-8"%>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
     <style>
@@ -17,19 +17,106 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .header-text {
+            flex: 1;
+            text-align: center;
+        }
+        
         .po-header h1 {
             font-size: 2.5rem;
             font-weight: 300;
             margin: 0;
-            text-align: center;
         }
         
         .po-header .subtitle {
-            text-align: center;
             font-size: 1.1rem;
             opacity: 0.9;
             margin-top: 0.5rem;
         }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Styles (put in your page CSS or site stylesheet) */
+        .btn-refresh {
+          /* reset link default styles */
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          border: none;
+          background: rgba(255,255,255,0.12);
+          border: 2px solid rgba(255,255,255,0.18);
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: transform .28s cubic-bezier(.2,.9,.3,1), box-shadow .28s, background .18s, border-color .18s;
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+          color: #fff;              /* important: SVG uses currentColor */
+          padding: 0;
+          margin: 0;
+          line-height: 0;           /* prevent text baseline spacing */
+          vertical-align: middle;
+          outline: none;
+        }
+
+        /* Remove focus ring default, provide accessible focus */
+        .btn-refresh:focus {
+          outline: none;
+          box-shadow: 0 0 0 4px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.22);
+        }
+
+        /* SVG sizing + smooth icon transform */
+        .btn-refresh svg {
+          display: block;           /* remove inline-gap issues */
+          width: 20px;
+          height: 20px;
+          transition: transform .32s cubic-bezier(.2,.9,.3,1);
+          transform-origin: 50% 50%;
+        }
+
+        /* Hover: subtle rotate of the icon only; preserve circle shape */
+        .btn-refresh:hover {
+          background: rgba(255,255,255,0.18);
+          border-color: rgba(255,255,255,0.28);
+          transform: translateY(-2px);   /* gentle lift */
+          box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+        }
+
+        .btn-refresh:hover svg {
+          transform: rotate(180deg) scale(1.05);
+        }
+
+        /* Active: press effect */
+        .btn-refresh:active {
+          transform: translateY(0);
+        }
+
+        .btn-refresh:active svg {
+          transform: rotate(180deg) scale(0.95);
+        }
+
+        /* small-screen tweak */
+        @media (max-width: 420px) {
+          .btn-refresh { width:44px; height:44px; }
+          .btn-refresh svg { width:18px; height:18px; }
+        }
+
         
         .main-content {
             max-width: 1400px;
@@ -360,13 +447,103 @@
             color: #6c757d;
         }
         
+        .section-header {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .section-header h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .section-header p {
+            color: #6c757d;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        
+        .section-divider {
+            text-align: center;
+            margin: 2rem 0;
+            position: relative;
+        }
+        
+        .section-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #dee2e6;
+        }
+        
+        .section-divider span {
+            background: white;
+            padding: 0 1rem;
+            color: #6c757d;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .hidden-section {
+            display: none !important;
+        }
+        
+        .disabled-section {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .fetch-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .dropdown-wrapper {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .po-dropdown {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem;
+        }
+        
+        .po-dropdown:hover {
+            border-color: #667eea;
+        }
+        
+        .po-dropdown:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
         @media (max-width: 768px) {
-            .upload-controls {
+            .upload-controls, .fetch-controls {
                 flex-direction: column;
                 align-items: stretch;
             }
             
-            .file-upload-wrapper {
+            .file-upload-wrapper, .dropdown-wrapper {
                 min-width: auto;
             }
             
@@ -374,8 +551,25 @@
                 padding: 0 0.5rem;
             }
             
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .header-actions {
+                order: -1;
+                justify-content: center;
+            }
+            
             .po-header h1 {
                 font-size: 2rem;
+            }
+            
+            .btn-refresh {
+                width: 45px;
+                height: 45px;
+                font-size: 1.3rem;
             }
             
             .pagination-container {
@@ -389,25 +583,75 @@
 
     <div class="po-container">
         <div class="po-header">
-            <h1>Purchase Order Management System</h1>
-            <div class="subtitle">Upload, Preview & Process Purchase Orders</div>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>Purchase Order Management System</h1>
+                    <div class="subtitle">Upload, Preview & Process Purchase Orders</div>
+                </div>
+                <div class="header-actions">
+                    <asp:LinkButton ID="btnRefresh" runat="server"
+                        CssClass="btn-refresh"
+                        OnClick="btnRefresh_Click"
+                        ToolTip="Refresh/Reset All"
+                        aria-label="Refresh">
+                        <!-- SVG icon (kept simple & crisp) -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                  d="M4 4v6h6M20 20v-6h-6M5 19A9 9 0 0 1 4 12a9 9 0 0 1 16-4M19 5A9 9 0 0 1 20 12a9 9 0 0 1-16 4" />
+                        </svg>
+                    </asp:LinkButton>
+
+                </div>
+            </div>
         </div>
         
         <div class="main-content">
+
+            <asp:Label ID="lblInfo" runat="server" CssClass="alert alert-success"></asp:Label>
+            <asp:Label ID="lblError" runat="server" CssClass="alert alert-error"></asp:Label>
+
             <div class="upload-section">
-                <div class="upload-controls">
-                    <div class="file-upload-wrapper">
-                        <asp:FileUpload ID="fuPdf" runat="server" CssClass="file-upload" accept="application/pdf" />
+                <!-- New PO Upload Section -->
+                <asp:Panel ID="pnlUploadSection" runat="server">
+                    <div class="section-header">
+                        <h3>Upload New Purchase Order</h3>
+                        <p>Upload a PDF file to parse and create a new purchase order</p>
                     </div>
-                    <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="Upload & Preview" OnClick="btnUpload_Click" />
-                    <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
-                    <asp:Button ID="btnReset" runat="server" CssClass="btn btn-warning" Text="Reset" OnClick="btnReset_Click" />
-                </div>
-                <div class="workflow-note">
-                    <strong>Workflow:</strong> Upload PDF, Preview parsed data, Click "Save to Database" if everything looks correct.
-                </div>
-                <asp:Label ID="lblInfo" runat="server" CssClass="alert alert-success"></asp:Label>
-                <asp:Label ID="lblError" runat="server" CssClass="alert alert-error"></asp:Label>
+                    <div class="upload-controls">
+                        <div class="file-upload-wrapper">
+                            <asp:FileUpload ID="fuPdf" runat="server" CssClass="file-upload" accept="application/pdf" />
+                        </div>
+                        <asp:Button ID="btnUpload" runat="server" CssClass="btn btn-primary" Text="Upload & Preview" OnClick="btnUpload_Click" />
+                        <asp:Button ID="btnSave" runat="server" CssClass="btn btn-success" Text="Save to Database" OnClick="btnSave_Click" Enabled="false" />
+                    </div>
+                </asp:Panel>
+                
+                <!-- Divider -->
+                <asp:Panel ID="pnlDivider" runat="server">
+                    <div class="section-divider">
+                        <span>OR</span>
+                    </div>
+                </asp:Panel>
+                
+                <!-- Fetch Existing PO Section -->
+                <asp:Panel ID="pnlFetchSection" runat="server">
+                    <div class="section-header">
+                        <h3>Edit Existing Purchase Order</h3>
+                        <p>Select an existing PO from the database to view and edit its details</p>
+                    </div>
+                    <div class="fetch-controls">
+                        <div class="dropdown-wrapper">
+                            <asp:DropDownList ID="ddlExistingPOs" runat="server" CssClass="po-dropdown">
+                                <asp:ListItem Text="-- Select a Purchase Order --" Value="0" />
+                            </asp:DropDownList>
+                        </div>
+                        <asp:Button ID="btnFetchPO" runat="server" CssClass="btn btn-primary" Text="Fetch & Edit" OnClick="btnFetchPO_Click" />
+                        <asp:Button ID="btnUpdatePO" runat="server" CssClass="btn btn-success" Text="Update Changes" OnClick="btnUpdatePO_Click" Enabled="false" />
+                    </div>
+                </asp:Panel>
+                
+                    
+                
             </div>
 
 
@@ -512,6 +756,7 @@
             </div>
 
             <asp:HiddenField ID="hfParsedJson" runat="server" />
+            <asp:HiddenField ID="hfCurrentPOMasterID" runat="server" Value="0" />
         </div>
     </div>
 
