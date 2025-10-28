@@ -20,7 +20,6 @@ Public Class UploadPO
         lblInfo.Text = "" : lblInfo.Style("display") = "none"
         lblError.Text = "" : lblError.Style("display") = "none"
 
-
         If Not fuPdf.HasFile Then
             ShowError("Please select a PDF file.")
             Return
@@ -29,7 +28,6 @@ Public Class UploadPO
             ShowError("Only PDF files are allowed.")
             Return
         End If
-
 
         Try
             Dim parser As New PdfPoParser()
@@ -40,24 +38,25 @@ Public Class UploadPO
             End If
             Me.Parsed = parsed
 
-
             ' Bind preview
             dvMaster.DataSource = New ParsedMaster() {parsed.Master}
             dvMaster.DataBind()
 
-
+            ' Configure GridView for better pagination
+            gvDetails.PageSize = 50
             gvDetails.DataSource = parsed.Details
             gvDetails.DataBind()
 
+            ' Update statistics
+            UpdateStatistics(parsed.Details)
 
             ' keep a JSON snapshot if you want client-side use
             hfParsedJson.Value = JsonConvert.SerializeObject(parsed)
 
-
             btnSave.Enabled = True
-            ShowInfo("Preview generated. Please verify then click Save to DB.")
+            ShowInfo("✅ Preview generated successfully. Please verify the data and click 'Save to Database' when ready.")
         Catch ex As Exception
-            ShowError("Failed to parse PDF: " & ex.Message)
+            ShowError("❌ Failed to parse PDF: " & ex.Message)
         End Try
     End Sub
 
@@ -155,6 +154,32 @@ Public Class UploadPO
         If Parsed IsNot Nothing Then
             gvDetails.DataSource = Parsed.Details
             gvDetails.DataBind()
+            UpdateStatistics(Parsed.Details)
+        End If
+    End Sub
+
+    Private Sub UpdateStatistics(details As List(Of ParsedDetail))
+        If details IsNot Nothing AndAlso details.Count > 0 Then
+            Dim totalItemsCount = details.Count
+            Dim totalPages = Math.Ceiling(totalItemsCount / gvDetails.PageSize)
+            Dim currentPageNum = gvDetails.PageIndex + 1
+            Dim totalAmountValue = details.Sum(Function(d) If(d.Amount, 0))
+
+            ' Update stats bar
+            statsBar.Style("display") = "block"
+            totalItems.InnerText = $"Total Items: {totalItemsCount:N0}"
+            currentPage.InnerText = $"Page {currentPageNum} of {totalPages}"
+            totalAmount.InnerText = $"Total Amount: {totalAmountValue:C2}"
+
+            ' Show pagination if more than one page
+            If totalPages > 1 Then
+                paginationContainer.Style("display") = "block"
+            Else
+                paginationContainer.Style("display") = "none"
+            End If
+        Else
+            statsBar.Style("display") = "none"
+            paginationContainer.Style("display") = "none"
         End If
     End Sub
 End Class
