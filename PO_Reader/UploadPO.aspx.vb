@@ -367,6 +367,12 @@ Public Class UploadPO
         paginationContainer.Style("display") = "none"
     End Sub
 
+    Protected Sub btnRefresh_Click(sender As Object, e As EventArgs)
+        ' Refresh/Reset everything - always available
+        ResetUI()
+        ShowInfo("🔄 Page refreshed successfully. All sections are now available.")
+    End Sub
+
 
 
     Private Sub ShowInfo(msg As String)

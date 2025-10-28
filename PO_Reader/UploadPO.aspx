@@ -17,18 +17,63 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .header-text {
+            flex: 1;
+            text-align: center;
+        }
+        
         .po-header h1 {
             font-size: 2.5rem;
             font-weight: 300;
             margin: 0;
-            text-align: center;
         }
         
         .po-header .subtitle {
-            text-align: center;
             font-size: 1.1rem;
             opacity: 0.9;
             margin-top: 0.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .btn-refresh {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .btn-refresh:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: rotate(180deg) scale(1.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-refresh:active {
+            transform: rotate(180deg) scale(0.95);
         }
         
         .main-content {
@@ -464,8 +509,25 @@
                 padding: 0 0.5rem;
             }
             
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .header-actions {
+                order: -1;
+                justify-content: center;
+            }
+            
             .po-header h1 {
                 font-size: 2rem;
+            }
+            
+            .btn-refresh {
+                width: 45px;
+                height: 45px;
+                font-size: 1.3rem;
             }
             
             .pagination-container {
@@ -479,8 +541,16 @@
 
     <div class="po-container">
         <div class="po-header">
-            <h1>Purchase Order Management System</h1>
-            <div class="subtitle">Upload, Preview & Process Purchase Orders</div>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>Purchase Order Management System</h1>
+                    <div class="subtitle">Upload, Preview & Process Purchase Orders</div>
+                </div>
+                <div class="header-actions">
+                    <asp:Button ID="btnRefresh" runat="server" CssClass="btn-refresh" OnClick="btnRefresh_Click" 
+                        ToolTip="Refresh/Reset All" Text="🔄" />
+                </div>
+            </div>
         </div>
         
         <div class="main-content">
