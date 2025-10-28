@@ -40,7 +40,19 @@ Public Class PdfPoParser
         End If
 
         Dim details As New List(Of ParsedDetail)
+        Dim stopProcessing As Boolean = False
+        
         For Each p In pages
+            ' If we've already found the end marker, stop processing all subsequent pages
+            If stopProcessing Then
+                Exit For
+            End If
+            
+            ' Check if this page contains the end marker
+            If p.Text.Contains("Grand Total Amount in Words") Then
+                stopProcessing = True
+            End If
+            
             details.AddRange(ParseItemsOnPage(p))
         Next
         details = CoalesceWrapped(details)
